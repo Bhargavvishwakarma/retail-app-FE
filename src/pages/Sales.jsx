@@ -31,6 +31,8 @@ export default function Sales() {
   const [salesTotal, setSalesTotal] = useState(0);
   const [salesPage, setSalesPage] = useState(0);
   const [dateRange, setDateRange] = useState('1');
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [loadingSales, setLoadingSales] = useState(true);
   const [selected, setSelected] = useState(/** @type {import('../types').Sale | null} */ (null));
   const [selectedSaleId, setSelectedSaleId] = useSessionState(`retail-draft:${draftKey}:selected-sale`, '');
@@ -38,9 +40,17 @@ export default function Sales() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setSalesPage(0);
+    }, 250);
+    return () => clearTimeout(timeout);
+  }, [search]);
+
+  useEffect(() => {
     let current = true;
     setLoadingSales(true);
-    api.get('/sales', { params: { page: salesPage, size: 25, ...getDateRangeParams(dateRange) } })
+    api.get('/sales', { params: { page: salesPage, size: 10, search: debouncedSearch, ...getDateRangeParams(dateRange) } })
       .then(response => {
         if (!current) return;
         setSales(response.data.content);
@@ -49,7 +59,7 @@ export default function Sales() {
       .catch(err => { if (current) setError(err.response?.data?.error || t('Request failed')); })
       .finally(() => { if (current) setLoadingSales(false); });
     return () => { current = false; };
-  }, [salesPage, dateRange, t]);
+  }, [salesPage, dateRange, debouncedSearch, t]);
 
   useEffect(() => {
     if (selectedSaleId) {
@@ -80,16 +90,23 @@ export default function Sales() {
     <div className="sales-page">
       <div className="sales-toolbar">
         <h1>{t('Sales History')}</h1>
-        <label className="sales-date-filter">
-          <span>{t('Date range')}</span>
-          <select value={dateRange} onChange={event => { setDateRange(event.target.value); setSalesPage(0); }}>
-            <option value="1">{t('Today')}</option>
-            <option value="7">{t('Last 7 days')}</option>
-            <option value="30">{t('Last 30 days')}</option>
-            <option value="90">{t('Last 90 days')}</option>
-            <option value="all">{t('All time')}</option>
-          </select>
+        <label className="sales-search">
+          <span aria-hidden="true">⌕</span>
+          <input aria-label={t('Search sales')} placeholder={t('Search by sale number or customer...')} value={search} onChange={event => setSearch(event.target.value)} />
+          {search && <button type="button" aria-label={t('Clear search')} onClick={() => setSearch('')}>×</button>}
         </label>
+      </div>
+      <div className="sales-filter-bar">
+        <div className="sales-range-group" role="group" aria-label={t('Date range')}>
+          {[
+            ['1', t('Today')],
+            ['7', t('Last 7 days')],
+            ['30', t('Last 30 days')],
+            ['90', t('Last 90 days')],
+            ['all', t('All time')]
+          ].map(([value, label]) => <button key={value} type="button" className={dateRange === value ? 'active' : ''} aria-pressed={dateRange === value} onClick={() => { setDateRange(value); setSalesPage(0); }}>{label}</button>)}
+        </div>
+        <span className="sales-result-count">{salesTotal} {t('sales')}</span>
       </div>
       {error && <p className="error" role="alert">{error}</p>}
       <div className="table-wrap sales-table-wrap"><table className="sales-table" aria-busy={loadingSales}>
@@ -109,7 +126,7 @@ export default function Sales() {
           ))}
         </tbody>
       </table></div>
-      {!loadingSales && <Pagination page={salesPage} size={25} total={salesTotal} onPageChange={setSalesPage} />}
+      {!loadingSales && <Pagination page={salesPage} size={10} total={salesTotal} onPageChange={setSalesPage} />}
 
       {loadingSaleId && !selected && <LoadingStatus>Loading sale details...</LoadingStatus>}
 

@@ -311,10 +311,19 @@ th { background: #f7f9f7; }
 .customer-table { min-width: 720px; }
 .sale-items-table { min-width: 540px; }
 .sales-table th, .sales-table td, .customer-table th, .customer-table td, .sale-items-table th, .sale-items-table td { white-space: nowrap; }
-.sales-toolbar { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.sales-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
 .sales-toolbar h1 { margin: 0; }
-.sales-date-filter { display: grid; min-width: 170px; gap: 5px; color: var(--muted); font-size: 12px; }
-.sales-date-filter select { min-height: 40px; }
+.sales-search { position: relative; display: flex; width: min(380px, 48%); align-items: center; }
+.sales-search > span { position: absolute; left: 13px; color: #788a80; font-size: 23px; line-height: 1; }
+.sales-search input { width: 100%; min-height: 42px; padding: 9px 40px; border-color: #e1e7e2; background: #fff; font-size: 13px; }
+.sales-search button { position: absolute; right: 7px; width: 29px; min-height: 29px; padding: 0; background: transparent; color: #75847c; font-size: 19px; }
+.sales-search button:hover { background: #f0f4f1; color: var(--ink); }
+.sales-filter-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.sales-range-group { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 11px; background: #edf2ef; }
+.sales-range-group button { min-height: 34px; padding: 0 13px; border: 0; border-radius: 8px; background: transparent; color: #596a61; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.sales-range-group button:hover { background: rgba(255,255,255,.75); color: var(--ink); }
+.sales-range-group button.active { background: #fff; color: var(--green-dark); box-shadow: 0 1px 4px rgba(20,45,35,.12); }
+.sales-result-count { color: var(--muted); font-size: 12px; white-space: nowrap; }
 .products-table { min-width: 880px; margin: 0; border: 0; border-radius: 0; box-shadow: none; }
 .products-table th { padding: 13px 15px; color: #65736b; font-size: 10px; letter-spacing: .07em; text-transform: uppercase; white-space: nowrap; }
 .products-table td { padding: 14px 15px; color: #33443b; font-size: 12px; }
@@ -358,7 +367,9 @@ th { background: #f7f9f7; }
 
 @media (max-width: 700px) {
   .sales-toolbar { align-items: stretch; flex-direction: column; }
-  .sales-date-filter { width: 100%; }
+  .sales-search { width: 100%; }
+  .sales-filter-bar { align-items: flex-start; flex-direction: column; }
+  .sales-range-group { max-width: 100%; overflow-x: auto; flex-wrap: nowrap; }
   .login-card { padding: 27px 22px; }
   .sidebar-user { margin-top: 12px; padding-top: 12px; }
   .receptionist-form { grid-template-columns: 1fr; }
