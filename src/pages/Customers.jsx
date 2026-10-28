@@ -5,6 +5,7 @@ import { useAuth } from '../auth';
 import useSessionState from '../useSessionState';
 import LoadingButton from '../components/LoadingButton';
 import LoadingStatus from '../components/LoadingStatus';
+import Pagination from '../components/Pagination';
 
 const emptyForm = { name: '', phone: '', email: '', address: '' };
 
@@ -13,6 +14,11 @@ export default function Customers() {
   const { user } = useAuth();
   const draftKey = user.id || user.email || 'current-user';
   const [customers, setCustomers] = useState(/** @type {import('../types').Customer[]} */ ([]));
+  const [customerTotal, setCustomerTotal] = useState(0);
+  const [customerPage, setCustomerPage] = useState(0);
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [reloadCustomers, setReloadCustomers] = useState(0);
   const [loadingCustomers, setLoadingCustomers] = useState(true);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useSessionState(`retail-draft:${draftKey}:customer-form`, emptyForm);
@@ -24,18 +30,29 @@ export default function Customers() {
 
   const getError = err => err.response?.data?.error || t('Request failed');
 
-  const load = async () => {
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setCustomerPage(0);
+      setDebouncedSearch(search.trim());
+    }, 250);
+    return () => clearTimeout(timeout);
+  }, [search]);
+
+  useEffect(() => {
+    let current = true;
     setLoadingCustomers(true);
-    try {
-      const response = await api.get('/customers');
-      setCustomers(response.data);
-    } catch (err) {
-      setError(getError(err));
-    } finally {
-      setLoadingCustomers(false);
-    }
-  };
-  useEffect(() => { load(); }, []);
+    api.get('/customers', { params: { search: debouncedSearch, page: customerPage, size: 25 } })
+      .then(response => {
+        if (!current) return;
+        setCustomers(response.data.content);
+        setCustomerTotal(response.data.totalElements);
+      })
+      .catch(err => { if (current) setError(getError(err)); })
+      .finally(() => { if (current) setLoadingCustomers(false); });
+    return () => { current = false; };
+  }, [debouncedSearch, customerPage, reloadCustomers, t]);
+
+  const reload = () => setReloadCustomers(value => value + 1);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -55,7 +72,8 @@ export default function Customers() {
       else await api.post('/customers', form);
       setForm(emptyForm);
       setEditingId(null);
-      await load();
+      setCustomerPage(0);
+      reload();
     } catch (err) {
       setError(getError(err));
     } finally {
@@ -75,7 +93,8 @@ export default function Customers() {
     try {
       await api.delete('/customers/' + pendingDelete.id);
       setPendingDelete(null);
-      load();
+      setCustomerPage(0);
+      reload();
     } catch (err) {
       setDeleteError(getError(err));
     } finally {
@@ -113,6 +132,7 @@ export default function Customers() {
         </div>
       </form>
 
+      <div className="products-list-heading"><div><h2>{t('Customer list')}</h2><p>{customerTotal} {t('customers')}</p></div><div className="products-list-controls"><input className="search-box" aria-label={t('Search customers')} placeholder={t('Search customers by name, phone, or email...')} value={search} onChange={event => setSearch(event.target.value)} /><button type="button" className="muted" onClick={() => { setSearch(''); setCustomerPage(0); }}>{t('Reset')}</button></div></div>
       <div className="table-wrap customer-table-wrap"><table className="customer-table">
         <thead><tr><th>{t('Name')}</th><th>{t('Phone')}</th><th>{t('Email')}</th><th>{t('Address')}</th><th>{t('Actions')}</th></tr></thead>
         <tbody aria-busy={loadingCustomers}>
@@ -132,6 +152,7 @@ export default function Customers() {
           ))}
         </tbody>
       </table></div>
+      {!loadingCustomers && <Pagination page={customerPage} size={25} total={customerTotal} onPageChange={setCustomerPage} />}
     </div>
   );
 }

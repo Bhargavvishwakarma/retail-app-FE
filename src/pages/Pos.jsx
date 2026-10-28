@@ -5,46 +5,95 @@ import { useAuth } from '../auth';
 import useSessionState from '../useSessionState';
 import LoadingButton from '../components/LoadingButton';
 import LoadingStatus from '../components/LoadingStatus';
+import Pagination from '../components/Pagination';
 
 export default function Pos() {
   const { t } = useLanguage();
   const { user } = useAuth();
   const draftKey = user.id || user.email || 'current-user';
-  const [products, setProducts] = useState(/** @type {import('../types').Product[]} */ ([]));
-  const [customers, setCustomers] = useState(/** @type {import('../types').Customer[]} */ ([]));
-  const [productsLoading, setProductsLoading] = useState(true);
-  const [customersLoading, setCustomersLoading] = useState(true);
   const [search, setSearch] = useSessionState(`retail-draft:${draftKey}:pos-search`, '');
   const [cart, setCart] = useSessionState(`retail-draft:${draftKey}:pos-cart`, []);
   const [customerId, setCustomerId] = useSessionState(`retail-draft:${draftKey}:pos-customer`, '');
+  const [paymentMethod, setPaymentMethod] = useSessionState(`retail-draft:${draftKey}:pos-payment`, 'CASH');
+  const [products, setProducts] = useState(/** @type {import('../types').Product[]} */ ([]));
+  const [productTotal, setProductTotal] = useState(0);
+  const [productPage, setProductPage] = useState(0);
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
+  const [reloadProducts, setReloadProducts] = useState(0);
+  const [customers, setCustomers] = useState(/** @type {import('../types').Customer[]} */ ([]));
+  const [customerTotal, setCustomerTotal] = useState(0);
+  const [customerPage, setCustomerPage] = useState(0);
+  const [debouncedCustomerSearch, setDebouncedCustomerSearch] = useState('');
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [customersLoading, setCustomersLoading] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
   const [customerPickerOpen, setCustomerPickerOpen] = useState(false);
   const [activeCustomerIndex, setActiveCustomerIndex] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useSessionState(`retail-draft:${draftKey}:pos-payment`, 'CASH');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [checkingOut, setCheckingOut] = useState(false);
 
-  const loadProducts = async () => {
-    const config = search ? { params: { search } } : {};
-    setProductsLoading(true);
-    try {
-      const response = await api.get('/products', config);
-      setProducts(response.data.filter(p => p.active));
-    } catch (err) {
-      setError(err.response?.data?.error || t('Request failed'));
-    } finally {
-      setProductsLoading(false);
-    }
-  };
-
-  useEffect(() => { loadProducts(); }, [search]);
   useEffect(() => {
-    api.get('/customers')
-      .then(response => setCustomers(response.data))
-      .catch(err => setError(err.response?.data?.error || t('Request failed')))
-      .finally(() => setCustomersLoading(false));
-  }, []);
+    const timeout = setTimeout(() => {
+      setProductPage(0);
+      setDebouncedSearch(search.trim());
+    }, 250);
+    return () => clearTimeout(timeout);
+  }, [search]);
+
+  useEffect(() => {
+    let current = true;
+    setProductsLoading(true);
+    setError('');
+    api.get('/products', { params: { search: debouncedSearch, page: productPage, size: 24 } })
+      .then(response => {
+        if (!current) return;
+        const result = response.data;
+        setProducts(result.content);
+        setProductTotal(result.totalElements);
+      })
+      .catch(err => {
+        if (current) setError(err.response?.data?.error || t('Request failed'));
+      })
+      .finally(() => {
+        if (current) {
+          setProductsLoading(false);
+        }
+      });
+    return () => { current = false; };
+  }, [debouncedSearch, productPage, reloadProducts, t]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setCustomerPage(0);
+      setDebouncedCustomerSearch(customerSearch.trim());
+    }, 250);
+    return () => clearTimeout(timeout);
+  }, [customerSearch]);
+
+  useEffect(() => {
+    if (!customerPickerOpen) return undefined;
+    let current = true;
+    setCustomersLoading(true);
+    api.get('/customers', { params: { search: debouncedCustomerSearch, page: customerPage, size: 20 } })
+      .then(response => {
+        if (!current) return;
+        setCustomers(response.data.content);
+        setCustomerTotal(response.data.totalElements);
+      })
+      .catch(err => { if (current) setError(err.response?.data?.error || t('Request failed')); })
+      .finally(() => { if (current) setCustomersLoading(false); });
+    return () => { current = false; };
+  }, [customerPickerOpen, debouncedCustomerSearch, customerPage, t]);
+
+  useEffect(() => {
+    if (!customerId || customers.some(customer => customer.id === customerId)) return;
+    let current = true;
+    api.get(`/customers/${customerId}`)
+      .then(response => { if (current) setCustomers(previous => [response.data, ...previous]); })
+      .catch(() => { if (current) setCustomerId(''); });
+    return () => { current = false; };
+  }, [customerId, customers]);
 
   const getError = (err) =>
     err.response && err.response.data && err.response.data.error ? err.response.data.error : t('Checkout failed');
@@ -89,12 +138,7 @@ export default function Pos() {
 
   const total = cart.reduce((sum, c) => sum + Number(c.unitPrice || 0) * c.quantity, 0);
   const selectedCustomer = customers.find(c => c.id === customerId);
-  const normalizedCustomerSearch = customerSearch.trim().toLocaleLowerCase();
-  const matchingCustomers = customers.filter(c =>
-    !normalizedCustomerSearch || [c.name, c.phone, c.email].some(value =>
-      String(value || '').toLocaleLowerCase().includes(normalizedCustomerSearch)
-    )
-  );
+  const matchingCustomers = customers;
 
   const chooseCustomer = customer => {
     setCustomerId(customer ? customer.id : '');
@@ -154,7 +198,8 @@ export default function Pos() {
       setMessage(`${t('Sale')} ${res.data.saleNumber} ${t('completed. Total Rs.')} ${Number(res.data.totalAmount).toFixed(2)}`);
       setCart([]);
       setCustomerId('');
-      await loadProducts();
+      setProductPage(0);
+      setReloadProducts(value => value + 1);
     } catch (err) {
       setError(getError(err));
     } finally {
@@ -178,7 +223,7 @@ export default function Pos() {
       <div className="pos">
         <div className="pos-left">
           <div className="catalog-heading">
-            <div><h2>{t('Products')}</h2><p>{products.length} {products.length === 1 ? 'item' : 'items'} available</p></div>
+            <div><h2>{t('Products')}</h2><p>{productTotal} {productTotal === 1 ? 'item' : 'items'} available</p></div>
           </div>
           <div className="pos-search">
             <span aria-hidden="true">⌕</span>
@@ -203,6 +248,7 @@ export default function Pos() {
             ))}
             {!productsLoading && products.length === 0 && <div className="catalog-empty"><span aria-hidden="true">⌕</span><strong>No products found</strong><p>Try another name or SKU.</p></div>}
           </div>
+          {!productsLoading && <Pagination page={productPage} size={24} total={productTotal} onPageChange={setProductPage} />}
         </div>
 
         <div className="pos-right">
@@ -242,7 +288,8 @@ export default function Pos() {
               disabled={checkingOut}
             />
             {customerPickerOpen && (
-              <div className="customer-options" id="customer-options" role="listbox" aria-busy={customersLoading}>
+              <div className="customer-options" aria-busy={customersLoading}>
+                <div id="customer-options" role="listbox">
                 {customersLoading && <div className="customer-empty"><LoadingStatus className="loading-status-compact">{t('Loading customers...')}</LoadingStatus></div>}
                 {!customersLoading && <>
                 <button
@@ -271,6 +318,8 @@ export default function Pos() {
                 ))}
                 {matchingCustomers.length === 0 && <div className="customer-empty">{t('No customers found')}</div>}
                 </>}
+                </div>
+                {!customersLoading && <div onMouseDown={event => event.preventDefault()}><Pagination page={customerPage} size={20} total={customerTotal} onPageChange={setCustomerPage} /></div>}
               </div>
             )}
           </div>

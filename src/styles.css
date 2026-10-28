@@ -196,6 +196,9 @@ th { background: #f7f9f7; }
 .catalog-empty { grid-column: 1 / -1; display: flex; min-height: 220px; flex-direction: column; align-items: center; justify-content: center; border: 1px dashed #d6dfd8; border-radius: 14px; background: rgba(255,255,255,.55); color: var(--ink); }
 .catalog-empty > span { margin-bottom: 10px; color: #8aa396; font-size: 34px; }
 .catalog-empty p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+.pagination { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 14px; border-top: 1px solid #edf0ed; }
+.pagination span { color: var(--muted); font-size: 12px; }
+.pagination button:disabled { cursor: not-allowed; opacity: .5; }
 .pos-right { position: sticky; top: 20px; min-width: 0; padding: 20px; border: 1px solid #e3e9e4; border-radius: 16px; background: var(--paper); box-shadow: var(--shadow); }
 .cart-heading { display: flex; align-items: center; justify-content: space-between; padding-bottom: 17px; border-bottom: 1px solid #edf0ed; }
 .cart-heading-actions { display: flex; align-items: center; gap: 9px; }

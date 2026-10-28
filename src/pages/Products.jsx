@@ -5,6 +5,7 @@ import { useAuth } from '../auth';
 import useSessionState from '../useSessionState';
 import LoadingButton from '../components/LoadingButton';
 import LoadingStatus from '../components/LoadingStatus';
+import Pagination from '../components/Pagination';
 
 const emptyForm = {
   name: '', sku: '', description: '', size: '', color: '',
@@ -16,11 +17,15 @@ export default function Products() {
   const { user } = useAuth();
   const isOwner = user.role === 'OWNER';
   const draftKey = user.id || user.email || 'current-user';
+  const [search, setSearch] = useSessionState(`retail-draft:${draftKey}:products-search`, '');
   const [products, setProducts] = useState(/** @type {import('../types').Product[]} */ ([]));
+  const [productTotal, setProductTotal] = useState(0);
+  const [productPage, setProductPage] = useState(0);
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
+  const [reloadProducts, setReloadProducts] = useState(0);
   const [categories, setCategories] = useState(/** @type {import('../types').Category[]} */ ([]));
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
-  const [search, setSearch] = useSessionState(`retail-draft:${draftKey}:products-search`, '');
   const [form, setForm] = useSessionState(`retail-draft:${draftKey}:product-form`, emptyForm);
   const [editingId, setEditingId] = useSessionState(`retail-draft:${draftKey}:product-editing`, null);
   const [error, setError] = useState('');
@@ -32,20 +37,29 @@ export default function Products() {
 
   const getError = err => err.response?.data?.error || t('Request failed');
 
-  const load = async () => {
-    const config = search ? { params: { search } } : {};
-    setLoadingProducts(true);
-    try {
-      const response = await api.get('/products', config);
-      setProducts(response.data);
-    } catch (err) {
-      setError(getError(err));
-    } finally {
-      setLoadingProducts(false);
-    }
-  };
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setProductPage(0);
+      setDebouncedSearch(search.trim());
+    }, 250);
+    return () => clearTimeout(timeout);
+  }, [search]);
 
-  useEffect(() => { load(); }, [search]);
+  useEffect(() => {
+    let current = true;
+    setLoadingProducts(true);
+    api.get('/products', { params: { search: debouncedSearch, page: productPage, size: 25 } })
+      .then(response => {
+        if (!current) return;
+        setProducts(response.data.content);
+        setProductTotal(response.data.totalElements);
+      })
+      .catch(err => { if (current) setError(getError(err)); })
+      .finally(() => { if (current) setLoadingProducts(false); });
+    return () => { current = false; };
+  }, [debouncedSearch, productPage, reloadProducts, t]);
+
+  const reload = () => setReloadProducts(value => value + 1);
   useEffect(() => {
     api.get('/categories')
       .then(response => setCategories(response.data))
@@ -60,6 +74,7 @@ export default function Products() {
 
   const resetPage = () => {
     setSearch('');
+    setProductPage(0);
     setForm(emptyForm);
     setEditingId(null);
     setError('');
@@ -92,7 +107,8 @@ export default function Products() {
       else await api.post('/products', payload);
       setForm(emptyForm);
       setEditingId(null);
-      await load();
+      setProductPage(0);
+      reload();
     } catch (err) {
       setError(getError(err));
     } finally {
@@ -123,7 +139,8 @@ export default function Products() {
     try {
       await api.delete('/products/' + pendingDelete.id);
       setPendingDelete(null);
-      load();
+      setProductPage(0);
+      reload();
     } catch (err) {
       setDeleteError(getError(err));
     } finally {
@@ -135,7 +152,7 @@ export default function Products() {
     <div className="products-page">
       <header className="products-heading">
         <div><span className="eyebrow">{t('INVENTORY')}</span><h1>{t('Products')}</h1><p>{t('Manage your products, stock, and selling prices.')}</p></div>
-        <div className="products-count"><strong>{products.length}</strong><span>{t('products')}</span></div>
+        <div className="products-count"><strong>{productTotal}</strong><span>{t('products')}</span></div>
       </header>
       {error && <p className="error">{error}</p>}
 
@@ -199,6 +216,7 @@ export default function Products() {
           ))}
         </tbody>
       </table></div>
+      {!loadingProducts && <Pagination page={productPage} size={25} total={productTotal} onPageChange={setProductPage} />}
     </div>
   );
 }

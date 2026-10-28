@@ -5,31 +5,36 @@ import { useAuth } from '../auth';
 import useSessionState from '../useSessionState';
 import LoadingButton from '../components/LoadingButton';
 import LoadingStatus from '../components/LoadingStatus';
+import Pagination from '../components/Pagination';
 
 export default function Sales() {
   const { t } = useLanguage();
   const { user } = useAuth();
   const draftKey = user.id || user.email || 'current-user';
   const [sales, setSales] = useState(/** @type {import('../types').Sale[]} */ ([]));
+  const [salesTotal, setSalesTotal] = useState(0);
+  const [salesPage, setSalesPage] = useState(0);
   const [loadingSales, setLoadingSales] = useState(true);
   const [selected, setSelected] = useState(/** @type {import('../types').Sale | null} */ (null));
   const [selectedSaleId, setSelectedSaleId] = useSessionState(`retail-draft:${draftKey}:selected-sale`, '');
   const [loadingSaleId, setLoadingSaleId] = useState('');
   const [error, setError] = useState('');
 
-  const load = async () => {
-    setLoadingSales(true);
-    try {
-      const response = await api.get('/sales');
-      setSales(response.data);
-    } catch (err) {
-      setError(err.response?.data?.error || t('Request failed'));
-    } finally {
-      setLoadingSales(false);
-    }
-  };
   useEffect(() => {
-    load();
+    let current = true;
+    setLoadingSales(true);
+    api.get('/sales', { params: { page: salesPage, size: 25 } })
+      .then(response => {
+        if (!current) return;
+        setSales(response.data.content);
+        setSalesTotal(response.data.totalElements);
+      })
+      .catch(err => { if (current) setError(err.response?.data?.error || t('Request failed')); })
+      .finally(() => { if (current) setLoadingSales(false); });
+    return () => { current = false; };
+  }, [salesPage, t]);
+
+  useEffect(() => {
     if (selectedSaleId) {
       setLoadingSaleId(selectedSaleId);
       api.get('/sales/' + selectedSaleId)
@@ -67,7 +72,7 @@ export default function Sales() {
             <tr key={s.id}>
               <td>{s.saleNumber}</td>
               <td>{new Date(s.saleDate).toLocaleString()}</td>
-              <td>{s.customer ? s.customer.name : t('Walk-in')}</td>
+              <td>{s.customerName || t('Walk-in')}</td>
               <td>{s.paymentMethod}</td>
               <td>Rs. {Number(s.totalAmount).toFixed(2)}</td>
               <td><LoadingButton type="button" loading={loadingSaleId === s.id} loadingText={t('Loading...')} disabled={Boolean(loadingSaleId) && loadingSaleId !== s.id} onClick={() => view(s.id)}>{t('View')}</LoadingButton></td>
@@ -75,6 +80,7 @@ export default function Sales() {
           ))}
         </tbody>
       </table></div>
+      {!loadingSales && <Pagination page={salesPage} size={25} total={salesTotal} onPageChange={setSalesPage} />}
 
       {loadingSaleId && !selected && <LoadingStatus>Loading sale details...</LoadingStatus>}
 

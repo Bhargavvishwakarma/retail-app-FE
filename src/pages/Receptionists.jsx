@@ -5,12 +5,16 @@ import { useAuth } from '../auth';
 import useSessionState from '../useSessionState';
 import LoadingButton from '../components/LoadingButton';
 import LoadingStatus from '../components/LoadingStatus';
+import Pagination from '../components/Pagination';
 
 export default function Receptionists() {
   const { t } = useLanguage();
   const { user } = useAuth();
   const draftKey = user.id || user.email || 'current-user';
   const [users, setUsers] = useState(/** @type {import('../types').AppUser[]} */ ([]));
+  const [userTotal, setUserTotal] = useState(0);
+  const [userPage, setUserPage] = useState(0);
+  const [reloadUsers, setReloadUsers] = useState(0);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [form, setForm] = useSessionState(`retail-draft:${draftKey}:receptionist-form`, { name: '', email: '' });
   const [password, setPassword] = useState('');
@@ -19,11 +23,18 @@ export default function Receptionists() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    api.get('/auth/users')
-      .then(response => setUsers(response.data))
-      .catch(err => setError(err.response?.data?.error || t('Request failed')))
-      .finally(() => setLoadingUsers(false));
-  }, []);
+    let current = true;
+    setLoadingUsers(true);
+    api.get('/auth/users', { params: { page: userPage, size: 25 } })
+      .then(response => {
+        if (!current) return;
+        setUsers(response.data.content);
+        setUserTotal(response.data.totalElements);
+      })
+      .catch(err => { if (current) setError(err.response?.data?.error || t('Request failed')); })
+      .finally(() => { if (current) setLoadingUsers(false); });
+    return () => { current = false; };
+  }, [userPage, reloadUsers, t]);
 
   const submit = async event => {
     event.preventDefault();
@@ -35,8 +46,8 @@ export default function Receptionists() {
       setMessage(`${t('Receptionist account created for')} ${response.data.name} (${response.data.email}).`);
       setForm({ name: '', email: '' });
       setPassword('');
-      const usersResponse = await api.get('/auth/users');
-      setUsers(usersResponse.data);
+      setUserPage(0);
+      setReloadUsers(value => value + 1);
     } catch (err) {
       setError(err.response?.data?.error || t('Request failed'));
     } finally {
@@ -59,7 +70,7 @@ export default function Receptionists() {
     {message && <p className="success" role="status">{message}</p>}
 
     <section className="user-list-section">
-      <div className="products-list-heading"><div><h2>{t('Store users')}</h2><p>{users.length} {t('accounts')}</p></div></div>
+      <div className="products-list-heading"><div><h2>{t('Store users')}</h2><p>{userTotal} {t('accounts')}</p></div></div>
       <div className="table-wrap"><table className="products-table user-table">
         <thead><tr><th>{t('Name')}</th><th>{t('Email')}</th><th>{t('Role')}</th><th>{t('Created')}</th></tr></thead>
         <tbody>
@@ -73,6 +84,7 @@ export default function Receptionists() {
           </tr>)}
         </tbody>
       </table></div>
+      {!loadingUsers && <Pagination page={userPage} size={25} total={userTotal} onPageChange={setUserPage} />}
     </section>
 
     <section className="create-receptionist-section">
