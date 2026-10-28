@@ -10,6 +10,7 @@ import Receptionists from './pages/Receptionists';
 import Chat from './pages/Chat';
 import { LanguageProvider, useLanguage } from './i18n';
 import { AuthProvider, RequireAuth, useAuth } from './auth';
+import LoadingButton from './components/LoadingButton';
 
 function Workspace() {
   const { language, setLanguage, t } = useLanguage();
@@ -150,14 +151,14 @@ function Profile({ user, theme, themeSaving, themeError, onThemeChange, onLogout
     <section className="profile-card" aria-labelledby="profile-account-heading">
       <div className="profile-card-heading"><span className="profile-avatar" aria-hidden="true">{user.name?.trim()?.charAt(0)?.toUpperCase() || 'U'}</span><div><h2 id="profile-account-heading">{user.name}</h2><p>{role}</p></div></div>
       <div className="profile-divider" />
-      <div className="profile-section-heading"><div><h2>Workspace colours</h2><p>Choose an accent colour for buttons, highlights, and navigation.</p></div><button type="button" className="muted" disabled={themeSaving} onClick={() => onThemeChange('forest')}>Reset</button></div>
+      <div className="profile-section-heading"><div><h2>Workspace colours</h2><p>Choose an accent colour for buttons, highlights, and navigation.</p></div><button type="button" className="muted" disabled={themeSaving} onClick={() => onThemeChange('forest')}>{t('Reset')}</button></div>
       {themeError && <p className="error" role="alert">{themeError}</p>}
       <div className="profile-themes" role="group" aria-label="Workspace colour">
-        {themes.map(option => <button key={option.id} type="button" className={`profile-theme${theme === option.id ? ' selected' : ''}`} aria-pressed={theme === option.id} disabled={themeSaving} onClick={() => onThemeChange(option.id)}>
+        {themes.map(option => <LoadingButton key={option.id} type="button" className={`profile-theme${theme === option.id ? ' selected' : ''}`} aria-pressed={theme === option.id} disabled={themeSaving} loading={themeSaving && theme === option.id} onClick={() => onThemeChange(option.id)}>
           <span className="profile-theme-swatch" style={{ '--swatch': option.color }} aria-hidden="true" />
           <span>{option.name}</span>
           {theme === option.id && <span className="profile-theme-check" aria-label="Selected">&#10003;</span>}
-        </button>)}
+        </LoadingButton>)}
       </div>
     </section>
     <section className="profile-card profile-signout-card" aria-labelledby="profile-signout-heading">

@@ -3,6 +3,8 @@ import api from '../api';
 import { useLanguage } from '../i18n';
 import { useAuth } from '../auth';
 import useSessionState from '../useSessionState';
+import LoadingButton from '../components/LoadingButton';
+import LoadingStatus from '../components/LoadingStatus';
 
 export default function Pos() {
   const { t } = useLanguage();
@@ -10,6 +12,8 @@ export default function Pos() {
   const draftKey = user.id || user.email || 'current-user';
   const [products, setProducts] = useState(/** @type {import('../types').Product[]} */ ([]));
   const [customers, setCustomers] = useState(/** @type {import('../types').Customer[]} */ ([]));
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [customersLoading, setCustomersLoading] = useState(true);
   const [search, setSearch] = useSessionState(`retail-draft:${draftKey}:pos-search`, '');
   const [cart, setCart] = useSessionState(`retail-draft:${draftKey}:pos-cart`, []);
   const [customerId, setCustomerId] = useSessionState(`retail-draft:${draftKey}:pos-customer`, '');
@@ -19,14 +23,28 @@ export default function Pos() {
   const [paymentMethod, setPaymentMethod] = useSessionState(`retail-draft:${draftKey}:pos-payment`, 'CASH');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [checkingOut, setCheckingOut] = useState(false);
 
-  const loadProducts = () => {
+  const loadProducts = async () => {
     const config = search ? { params: { search } } : {};
-    api.get('/products', config).then(r => setProducts(r.data.filter(p => p.active)));
+    setProductsLoading(true);
+    try {
+      const response = await api.get('/products', config);
+      setProducts(response.data.filter(p => p.active));
+    } catch (err) {
+      setError(err.response?.data?.error || t('Request failed'));
+    } finally {
+      setProductsLoading(false);
+    }
   };
 
   useEffect(() => { loadProducts(); }, [search]);
-  useEffect(() => { api.get('/customers').then(r => setCustomers(r.data)); }, []);
+  useEffect(() => {
+    api.get('/customers')
+      .then(response => setCustomers(response.data))
+      .catch(err => setError(err.response?.data?.error || t('Request failed')))
+      .finally(() => setCustomersLoading(false));
+  }, []);
 
   const getError = (err) =>
     err.response && err.response.data && err.response.data.error ? err.response.data.error : t('Checkout failed');
@@ -115,6 +133,7 @@ export default function Pos() {
   };
 
   const checkout = async () => {
+    if (checkingOut) return;
     setError('');
     setMessage('');
     if (cart.length === 0) { setError(t('Cart is empty')); return; }
@@ -123,6 +142,7 @@ export default function Pos() {
       setError(`${belowMinimum.product.name}: ${t('Price must be at least')} Rs. ${minimumPriceFor(belowMinimum.product).toFixed(2)} (${t('cost plus 15% profit')}).`);
       return;
     }
+    setCheckingOut(true);
     try {
       /** @type {import('../types').SaleRequest} */
       const payload = {
@@ -134,9 +154,11 @@ export default function Pos() {
       setMessage(`${t('Sale')} ${res.data.saleNumber} ${t('completed. Total Rs.')} ${Number(res.data.totalAmount).toFixed(2)}`);
       setCart([]);
       setCustomerId('');
-      loadProducts();
+      await loadProducts();
     } catch (err) {
       setError(getError(err));
+    } finally {
+      setCheckingOut(false);
     }
   };
 
@@ -163,10 +185,11 @@ export default function Pos() {
             <input aria-label={t('Search products by name or SKU...')} placeholder={t('Search products by name or SKU...')} value={search} onChange={e => setSearch(e.target.value)} />
             {search && <button type="button" className="clear-search" onClick={() => setSearch('')} aria-label="Clear search">×</button>}
           </div>
-          <div className="product-grid">
-            {products.map(p => (
+          <div className="product-grid" aria-busy={productsLoading}>
+            {productsLoading && <LoadingStatus className="catalog-loading">{t('Loading products...')}</LoadingStatus>}
+            {!productsLoading && products.map(p => (
               <button key={p.id} type="button" className={'product-card' + (p.stockQuantity === 0 ? ' out' : '')}
-                      onClick={() => p.stockQuantity > 0 && addToCart(p)} disabled={p.stockQuantity === 0}
+                      onClick={() => p.stockQuantity > 0 && addToCart(p)} disabled={p.stockQuantity === 0 || checkingOut}
                       aria-label={`${p.name}, Rs. ${Number(p.price).toFixed(2)}, ${p.stockQuantity} in stock`}>
                 <span className="product-card-top">
                   <span className="product-symbol" aria-hidden="true">✦</span>
@@ -178,24 +201,24 @@ export default function Pos() {
                 <span className="product-add">{p.stockQuantity > 0 ? '+ Add to cart' : 'Unavailable'}</span>
               </button>
             ))}
-            {products.length === 0 && <div className="catalog-empty"><span aria-hidden="true">⌕</span><strong>No products found</strong><p>Try another name or SKU.</p></div>}
+            {!productsLoading && products.length === 0 && <div className="catalog-empty"><span aria-hidden="true">⌕</span><strong>No products found</strong><p>Try another name or SKU.</p></div>}
           </div>
         </div>
 
         <div className="pos-right">
           <div className="cart-heading">
             <div><span className="eyebrow">CURRENT ORDER</span><h2>{t('Cart')}</h2></div>
-            <div className="cart-heading-actions"><span className="cart-count">{cart.reduce((count, item) => count + item.quantity, 0)}</span><button type="button" className="muted" onClick={resetSale}>{t('Reset')}</button></div>
+            <div className="cart-heading-actions"><span className="cart-count">{cart.reduce((count, item) => count + item.quantity, 0)}</span><button type="button" className="muted" onClick={resetSale} disabled={checkingOut}>{t('Reset')}</button></div>
           </div>
           {cart.length === 0 && <div className="cart-empty"><span className="cart-empty-icon" aria-hidden="true">＋</span><strong>{t('No items yet. Click a product to add.')}</strong><p>Select an item to get started.</p></div>}
           {cart.map(c => (
             <div key={c.product.id} className="cart-row">
               <span className="cart-item-info"><strong>{c.product.name}</strong><small>{t('Default')}: Rs. {Number(c.product.price).toFixed(2)}</small></span>
-              <label className="cart-price-field"><span>{t('Sale price')}</span><input aria-label={`${t('Sale price')} for ${c.product.name}`} type="number" min={minimumPriceFor(c.product)} step="0.01" value={c.unitPrice} onChange={e => changePrice(c.product.id, e.target.value)} /><small>{t('Min')}: Rs. {minimumPriceFor(c.product).toFixed(2)}</small></label>
+              <label className="cart-price-field"><span>{t('Sale price')}</span><input aria-label={`${t('Sale price')} for ${c.product.name}`} type="number" min={minimumPriceFor(c.product)} step="0.01" value={c.unitPrice} onChange={e => changePrice(c.product.id, e.target.value)} disabled={checkingOut} /><small>{t('Min')}: Rs. {minimumPriceFor(c.product).toFixed(2)}</small></label>
               <input aria-label={`Quantity of ${c.product.name}`} type="number" min="1" value={c.quantity}
-                     onChange={e => changeQty(c.product.id, parseInt(e.target.value, 10) || 1)} />
+                     onChange={e => changeQty(c.product.id, parseInt(e.target.value, 10) || 1)} disabled={checkingOut} />
               <strong className="cart-item-total">Rs. {(Number(c.unitPrice || 0) * c.quantity).toFixed(2)}</strong>
-              <button type="button" className="remove-item" aria-label={`Remove ${c.product.name}`} onClick={() => removeItem(c.product.id)}>×</button>
+              <button type="button" className="remove-item" aria-label={`Remove ${c.product.name}`} onClick={() => removeItem(c.product.id)} disabled={checkingOut}>×</button>
             </div>
           ))}
           <div className="cart-summary"><div className="subtotal-line"><span>{t('Subtotal')}</span><span>Rs. {total.toFixed(2)}</span></div><div className="total-line"><span>{t('Total')}</span><strong>Rs. {total.toFixed(2)}</strong></div></div>
@@ -216,9 +239,12 @@ export default function Pos() {
               onChange={event => { setCustomerSearch(event.target.value); setCustomerPickerOpen(true); setActiveCustomerIndex(0); }}
               onKeyDown={handleCustomerKeyDown}
               onBlur={() => setTimeout(() => setCustomerPickerOpen(false), 120)}
+              disabled={checkingOut}
             />
             {customerPickerOpen && (
-              <div className="customer-options" id="customer-options" role="listbox">
+              <div className="customer-options" id="customer-options" role="listbox" aria-busy={customersLoading}>
+                {customersLoading && <div className="customer-empty"><LoadingStatus className="loading-status-compact">{t('Loading customers...')}</LoadingStatus></div>}
+                {!customersLoading && <>
                 <button
                   type="button"
                   id="customer-option-0"
@@ -244,18 +270,19 @@ export default function Pos() {
                   </button>
                 ))}
                 {matchingCustomers.length === 0 && <div className="customer-empty">{t('No customers found')}</div>}
+                </>}
               </div>
             )}
           </div>
 
           <label htmlFor="payment-method">{t('Payment')}</label>
-          <select id="payment-method" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
+          <select id="payment-method" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} disabled={checkingOut}>
             <option value="CASH">{t('Cash')}</option>
             <option value="CARD">{t('Card')}</option>
             <option value="UPI">{t('UPI')}</option>
           </select>
 
-          <button className="primary checkout-button" onClick={checkout}>{t('Checkout')} <span aria-hidden="true">→</span></button>
+          <LoadingButton className="primary checkout-button" loading={checkingOut} loadingText={t('Completing sale...')} onClick={checkout} disabled={cart.length === 0}>{t('Checkout')} <span aria-hidden="true">→</span></LoadingButton>
           <p className="secure-note">Review the order before completing payment.</p>
         </div>
       </div>

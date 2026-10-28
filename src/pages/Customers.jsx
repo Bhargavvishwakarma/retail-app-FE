@@ -3,6 +3,8 @@ import api from '../api';
 import { useLanguage } from '../i18n';
 import { useAuth } from '../auth';
 import useSessionState from '../useSessionState';
+import LoadingButton from '../components/LoadingButton';
+import LoadingStatus from '../components/LoadingStatus';
 
 const emptyForm = { name: '', phone: '', email: '', address: '' };
 
@@ -11,6 +13,8 @@ export default function Customers() {
   const { user } = useAuth();
   const draftKey = user.id || user.email || 'current-user';
   const [customers, setCustomers] = useState(/** @type {import('../types').Customer[]} */ ([]));
+  const [loadingCustomers, setLoadingCustomers] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useSessionState(`retail-draft:${draftKey}:customer-form`, emptyForm);
   const [editingId, setEditingId] = useSessionState(`retail-draft:${draftKey}:customer-editing`, null);
   const [error, setError] = useState('');
@@ -18,7 +22,19 @@ export default function Customers() {
   const [deleteError, setDeleteError] = useState('');
   const [deleting, setDeleting] = useState(false);
 
-  const load = () => api.get('/customers').then(r => setCustomers(r.data));
+  const getError = err => err.response?.data?.error || t('Request failed');
+
+  const load = async () => {
+    setLoadingCustomers(true);
+    try {
+      const response = await api.get('/customers');
+      setCustomers(response.data);
+    } catch (err) {
+      setError(getError(err));
+    } finally {
+      setLoadingCustomers(false);
+    }
+  };
   useEffect(() => { load(); }, []);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
@@ -29,20 +45,21 @@ export default function Customers() {
     setError('');
   };
 
-  const getError = (err) =>
-    err.response && err.response.data && err.response.data.error ? err.response.data.error : t('Request failed');
-
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     setError('');
+    setSaving(true);
     try {
       if (editingId) await api.put('/customers/' + editingId, form);
       else await api.post('/customers', form);
       setForm(emptyForm);
       setEditingId(null);
-      load();
+      await load();
     } catch (err) {
       setError(getError(err));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -80,26 +97,28 @@ export default function Customers() {
           {deleteError && <p className="error confirm-error">{deleteError}</p>}
           <div className="confirm-actions">
             <button type="button" className="muted" autoFocus disabled={deleting} onClick={() => setPendingDelete(null)}>{t('Cancel')}</button>
-            <button type="button" className="danger" disabled={deleting} onClick={handleDelete}>{deleting ? '…' : t('Delete')}</button>
+            <LoadingButton type="button" className="danger" loading={deleting} loadingText={t('Deleting...')} onClick={handleDelete}>{t('Delete')}</LoadingButton>
           </div>
         </section>
       </div>}
-      <form className="form-grid" onSubmit={handleSubmit}>
+      <form className="form-grid" aria-busy={saving} onSubmit={handleSubmit}>
         <input name="name" placeholder={t('Name *')} value={form.name} onChange={handleChange} required />
         <input name="phone" placeholder={t('Phone')} value={form.phone} onChange={handleChange} />
         <input name="email" placeholder={t('Email')} value={form.email} onChange={handleChange} />
         <input name="address" placeholder={t('Address')} value={form.address} onChange={handleChange} />
         <div className="form-actions">
-          <button type="button" className="muted" onClick={resetForm}>{t('Reset')}</button>
-          <button type="submit">{t(editingId ? 'Update Customer' : 'Add Customer')}</button>
-          {editingId && <button type="button" className="muted" onClick={() => { setEditingId(null); setForm(emptyForm); }}>{t('Cancel')}</button>}
+          <button type="button" className="muted" disabled={saving} onClick={resetForm}>{t('Reset')}</button>
+          <LoadingButton type="submit" loading={saving} loadingText={t('Saving...')}>{t(editingId ? 'Update Customer' : 'Add Customer')}</LoadingButton>
+          {editingId && <button type="button" className="muted" disabled={saving} onClick={() => { setEditingId(null); setForm(emptyForm); }}>{t('Cancel')}</button>}
         </div>
       </form>
 
       <div className="table-wrap customer-table-wrap"><table className="customer-table">
         <thead><tr><th>{t('Name')}</th><th>{t('Phone')}</th><th>{t('Email')}</th><th>{t('Address')}</th><th>{t('Actions')}</th></tr></thead>
-        <tbody>
-          {customers.map(c => (
+        <tbody aria-busy={loadingCustomers}>
+          {loadingCustomers && <tr><td className="table-status-cell" colSpan="5"><LoadingStatus className="loading-status-compact">{t('Loading customers...')}</LoadingStatus></td></tr>}
+          {!loadingCustomers && customers.length === 0 && <tr><td className="products-empty" colSpan="5">{t('No customers found')}</td></tr>}
+          {!loadingCustomers && customers.map(c => (
             <tr key={c.id}>
               <td>{c.name}</td>
               <td>{c.phone}</td>

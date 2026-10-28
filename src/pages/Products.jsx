@@ -3,6 +3,8 @@ import api from '../api';
 import { useLanguage } from '../i18n';
 import { useAuth } from '../auth';
 import useSessionState from '../useSessionState';
+import LoadingButton from '../components/LoadingButton';
+import LoadingStatus from '../components/LoadingStatus';
 
 const emptyForm = {
   name: '', sku: '', description: '', size: '', color: '',
@@ -16,6 +18,8 @@ export default function Products() {
   const draftKey = user.id || user.email || 'current-user';
   const [products, setProducts] = useState(/** @type {import('../types').Product[]} */ ([]));
   const [categories, setCategories] = useState(/** @type {import('../types').Category[]} */ ([]));
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [search, setSearch] = useSessionState(`retail-draft:${draftKey}:products-search`, '');
   const [form, setForm] = useSessionState(`retail-draft:${draftKey}:product-form`, emptyForm);
   const [editingId, setEditingId] = useSessionState(`retail-draft:${draftKey}:product-editing`, null);
@@ -23,18 +27,31 @@ export default function Products() {
   const [pendingDelete, setPendingDelete] = useState(/** @type {import('../types').Product | null} */ (null));
   const [deleteError, setDeleteError] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [saving, setSaving] = useState(false);
   const minimumPrice = Math.ceil((Number(form.cost || 0) * 1.15 - Number.EPSILON) * 100) / 100;
 
-  const load = () => {
+  const getError = err => err.response?.data?.error || t('Request failed');
+
+  const load = async () => {
     const config = search ? { params: { search } } : {};
-    api.get('/products', config).then(r => setProducts(r.data));
+    setLoadingProducts(true);
+    try {
+      const response = await api.get('/products', config);
+      setProducts(response.data);
+    } catch (err) {
+      setError(getError(err));
+    } finally {
+      setLoadingProducts(false);
+    }
   };
 
   useEffect(() => { load(); }, [search]);
-  useEffect(() => { api.get('/categories').then(r => setCategories(r.data)); }, []);
-
-  const getError = (err) =>
-    err.response && err.response.data && err.response.data.error ? err.response.data.error : t('Request failed');
+  useEffect(() => {
+    api.get('/categories')
+      .then(response => setCategories(response.data))
+      .catch(err => setError(getError(err)))
+      .finally(() => setCategoriesLoading(false));
+  }, []);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -50,6 +67,7 @@ export default function Products() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     setError('');
     if (Number(form.price) < minimumPrice) {
       setError(`${t('Price must be at least')} Rs. ${minimumPrice.toFixed(2)} (${t('cost plus 15% profit')}).`);
@@ -68,14 +86,17 @@ export default function Products() {
       active: form.active,
       category: form.category ? { id: form.category } : null
     };
+    setSaving(true);
     try {
       if (editingId) await api.put('/products/' + editingId, payload);
       else await api.post('/products', payload);
       setForm(emptyForm);
       setEditingId(null);
-      load();
+      await load();
     } catch (err) {
       setError(getError(err));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -129,12 +150,12 @@ export default function Products() {
           {deleteError && <p className="error confirm-error">{deleteError}</p>}
           <div className="confirm-actions">
             <button type="button" className="muted" autoFocus disabled={deleting} onClick={() => setPendingDelete(null)}>{t('Cancel')}</button>
-            <button type="button" className="danger" disabled={deleting} onClick={handleDelete}>{deleting ? '…' : t('Archive')}</button>
+            <LoadingButton type="button" className="danger" loading={deleting} loadingText={t('Deleting...')} onClick={handleDelete}>{t('Archive')}</LoadingButton>
           </div>
         </section>
       </div>}
 
-      {isOwner && <form className="form-grid product-form" onSubmit={handleSubmit}>
+      {isOwner && <form className="form-grid product-form" aria-busy={saving} onSubmit={handleSubmit}>
         <div className="product-form-title"><div><h2>{t(editingId ? 'Edit product' : 'Add a product')}</h2><p>{t('Set your default selling price and stock details.')}</p></div>{editingId && <span className="editing-badge">{t('Editing')}</span>}</div>
         <label className="product-field"><span>{t('Name *')}</span><input name="name" placeholder={t('e.g. Silk saree')} value={form.name} onChange={handleChange} required /></label>
         <label className="product-field"><span>{t('SKU')}</span><input name="sku" placeholder={t('Optional product code')} value={form.sku} onChange={handleChange} /></label>
@@ -143,13 +164,13 @@ export default function Products() {
         <label className="product-field"><span>{t('Stock Qty')}</span><input name="stockQuantity" type="number" min="0" placeholder="0" value={form.stockQuantity} onChange={handleChange} /></label>
         <label className="product-field"><span>{t('Size (S/M/L/XL)')}</span><input name="size" placeholder={t('e.g. S / M / XL')} value={form.size} onChange={handleChange} /></label>
         <label className="product-field"><span>{t('Color')}</span><input name="color" placeholder={t('e.g. Maroon')} value={form.color} onChange={handleChange} /></label>
-        <label className="product-field"><span>{t('Category')}</span><select name="category" value={form.category} onChange={handleChange}>
-          <option value="">{t('No category')}</option>
+        <label className="product-field"><span>{t('Category')}</span><select name="category" value={form.category} onChange={handleChange} disabled={categoriesLoading} aria-busy={categoriesLoading}>
+          <option value="">{categoriesLoading ? t('Loading categories...') : t('No category')}</option>
           {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select></label>
         <label className="product-field product-description"><span>{t('Description')}</span><input name="description" placeholder={t('Optional details')} value={form.description} onChange={handleChange} /></label>
-        <div className="product-form-footer"><label className="checkbox-label"><input type="checkbox" name="active" checked={form.active} onChange={handleChange} /> {t('Active')}</label>
-          <div className="form-actions"><button type="submit">{t(editingId ? 'Update Product' : 'Add Product')}</button>{editingId && <button type="button" className="muted" onClick={() => { setEditingId(null); setForm(emptyForm); }}>{t('Cancel')}</button>}</div>
+        <div className="product-form-footer"><label className="checkbox-label"><input type="checkbox" name="active" checked={form.active} onChange={handleChange} disabled={saving} /> {t('Active')}</label>
+          <div className="form-actions"><LoadingButton type="submit" loading={saving} loadingText={t('Saving...')}>{t(editingId ? 'Update Product' : 'Add Product')}</LoadingButton>{editingId && <button type="button" className="muted" disabled={saving} onClick={() => { setEditingId(null); setForm(emptyForm); }}>{t('Cancel')}</button>}</div>
         </div>
       </form>}
 
@@ -157,9 +178,10 @@ export default function Products() {
 
       <div className="table-wrap"><table className="products-table">
         <thead><tr><th>{t('Name')}</th><th>{t('SKU')}</th><th>{t('Category')}</th><th>{t('Size (S/M/L/XL)')}</th><th>{t('Color')}</th><th>{t('Price')}</th><th>{t('Stock')}</th><th>{t('Status')}</th>{isOwner && <th>{t('Actions')}</th>}</tr></thead>
-        <tbody>
-          {products.length === 0 && <tr><td className="products-empty" colSpan={isOwner ? 9 : 8}>{t('No products found')}</td></tr>}
-          {products.map(p => (
+        <tbody aria-busy={loadingProducts}>
+          {loadingProducts && <tr><td className="products-empty" colSpan={isOwner ? 9 : 8}><LoadingStatus className="loading-status-compact">{t('Loading products...')}</LoadingStatus></td></tr>}
+          {!loadingProducts && products.length === 0 && <tr><td className="products-empty" colSpan={isOwner ? 9 : 8}>{t('No products found')}</td></tr>}
+          {!loadingProducts && products.map(p => (
             <tr key={p.id} className={p.stockQuantity < 5 ? 'low-stock' : ''}>
               <td>{p.name}</td>
               <td>{p.sku}</td>

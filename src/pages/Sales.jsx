@@ -3,45 +3,80 @@ import api from '../api';
 import { useLanguage } from '../i18n';
 import { useAuth } from '../auth';
 import useSessionState from '../useSessionState';
+import LoadingButton from '../components/LoadingButton';
+import LoadingStatus from '../components/LoadingStatus';
 
 export default function Sales() {
   const { t } = useLanguage();
   const { user } = useAuth();
   const draftKey = user.id || user.email || 'current-user';
   const [sales, setSales] = useState(/** @type {import('../types').Sale[]} */ ([]));
+  const [loadingSales, setLoadingSales] = useState(true);
   const [selected, setSelected] = useState(/** @type {import('../types').Sale | null} */ (null));
   const [selectedSaleId, setSelectedSaleId] = useSessionState(`retail-draft:${draftKey}:selected-sale`, '');
+  const [loadingSaleId, setLoadingSaleId] = useState('');
+  const [error, setError] = useState('');
 
-  const load = () => api.get('/sales').then(r => setSales(r.data));
+  const load = async () => {
+    setLoadingSales(true);
+    try {
+      const response = await api.get('/sales');
+      setSales(response.data);
+    } catch (err) {
+      setError(err.response?.data?.error || t('Request failed'));
+    } finally {
+      setLoadingSales(false);
+    }
+  };
   useEffect(() => {
     load();
-    if (selectedSaleId) api.get('/sales/' + selectedSaleId).then(res => setSelected(res.data)).catch(() => setSelectedSaleId(''));
+    if (selectedSaleId) {
+      setLoadingSaleId(selectedSaleId);
+      api.get('/sales/' + selectedSaleId)
+        .then(response => setSelected(response.data))
+        .catch(() => setSelectedSaleId(''))
+        .finally(() => setLoadingSaleId(''));
+    }
   }, []);
 
   const view = async (id) => {
-    const res = await api.get('/sales/' + id);
-    setSelected(res.data);
-    setSelectedSaleId(id);
+    if (loadingSaleId) return;
+    setError('');
+    setLoadingSaleId(id);
+    try {
+      const response = await api.get('/sales/' + id);
+      setSelected(response.data);
+      setSelectedSaleId(id);
+    } catch (err) {
+      setError(err.response?.data?.error || t('Request failed'));
+    } finally {
+      setLoadingSaleId('');
+    }
   };
 
   return (
     <div className="sales-page">
       <h1>{t('Sales History')}</h1>
-      <div className="table-wrap sales-table-wrap"><table className="sales-table">
+      {error && <p className="error" role="alert">{error}</p>}
+      <div className="table-wrap sales-table-wrap"><table className="sales-table" aria-busy={loadingSales}>
         <thead><tr><th>{t('Sale #')}</th><th>{t('Date')}</th><th>{t('Customer')}</th><th>{t('Payment')}</th><th>{t('Total')}</th><th></th></tr></thead>
         <tbody>
-          {sales.map(s => (
+          {loadingSales && <tr><td className="products-empty" colSpan="6"><LoadingStatus className="loading-status-compact">{t('Loading sales...')}</LoadingStatus></td></tr>}
+          {!loadingSales && sales.length === 0 && <tr><td className="products-empty" colSpan="6">{t('No sales yet')}</td></tr>}
+          {!loadingSales && sales.map(s => (
             <tr key={s.id}>
               <td>{s.saleNumber}</td>
               <td>{new Date(s.saleDate).toLocaleString()}</td>
               <td>{s.customer ? s.customer.name : t('Walk-in')}</td>
               <td>{s.paymentMethod}</td>
               <td>Rs. {Number(s.totalAmount).toFixed(2)}</td>
-              <td><button onClick={() => view(s.id)}>{t('View')}</button></td>
+              <td><LoadingButton type="button" loading={loadingSaleId === s.id} loadingText={t('Loading...')} disabled={Boolean(loadingSaleId) && loadingSaleId !== s.id} onClick={() => view(s.id)}>{t('View')}</LoadingButton></td>
             </tr>
           ))}
         </tbody>
       </table></div>
+
+      {loadingSaleId && !selected && <LoadingStatus>Loading sale details...</LoadingStatus>}
 
       {selected && (
         <div className="detail">

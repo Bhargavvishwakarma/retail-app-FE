@@ -33,6 +33,7 @@ th { background: #f9fafb; font-size: 13px; color: #555; font-weight: 650; }
 tr.low-stock td { background: #fef2f2; }
 
 button { min-height: 38px; background: #2563eb; color: #fff; border: none; padding: 0 14px; border-radius: 6px; cursor: pointer; font-size: 13px; line-height: 1.2; }
+button:disabled { cursor: wait; opacity: .72; }
 button:hover { background: var(--green-dark); }
 button.danger { background: var(--danger); }
 button.danger:hover { background: var(--danger-hover); }
@@ -49,6 +50,18 @@ input, select, textarea { padding: 8px 10px; border: 1px solid #ccc; border-radi
 
 .error { color: #dc2626; background: #fee2e2; padding: 10px; border-radius: 6px; }
 .success { color: #166534; background: #dcfce7; padding: 10px; border-radius: 6px; }
+
+.loading-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.button-spinner, .loading-spinner { display: inline-block; flex: 0 0 auto; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: loading-spin .7s linear infinite; }
+.button-spinner { width: 14px; height: 14px; }
+.loading-spinner { width: 20px; height: 20px; color: var(--green); }
+.loading-status { display: flex; min-height: 52px; align-items: center; justify-content: center; gap: 10px; color: var(--muted); font-size: 13px; }
+.loading-status-compact { min-height: 0; justify-content: flex-start; font-size: inherit; }
+.loading-status-compact .loading-spinner { width: 14px; height: 14px; }
+.table-status-cell { padding: 0; }
+.catalog-loading { grid-column: 1 / -1; min-height: 160px; }
+.chat-history-loading { justify-content: center; }
+@keyframes loading-spin { to { transform: rotate(360deg); } }
 
 .pos { display: flex; gap: 20px; align-items: flex-start; }
 .pos-left { flex: 2; }
@@ -361,6 +374,7 @@ th { background: #f7f9f7; }
 
 @media (prefers-reduced-motion: reduce) {
   .confirm-dialog { animation: none; }
+  .button-spinner, .loading-spinner { animation-duration: 1.5s; }
 }
 
 /* Store overview */

@@ -3,6 +3,8 @@ import api from '../api';
 import { useLanguage } from '../i18n';
 import { useAuth } from '../auth';
 import useSessionState from '../useSessionState';
+import LoadingButton from '../components/LoadingButton';
+import LoadingStatus from '../components/LoadingStatus';
 
 export default function Receptionists() {
   const { t } = useLanguage();
@@ -61,7 +63,7 @@ export default function Receptionists() {
       <div className="table-wrap"><table className="products-table user-table">
         <thead><tr><th>{t('Name')}</th><th>{t('Email')}</th><th>{t('Role')}</th><th>{t('Created')}</th></tr></thead>
         <tbody>
-          {loadingUsers && <tr><td className="products-empty" colSpan="4">{t('Loading...')}</td></tr>}
+          {loadingUsers && <tr><td className="products-empty" colSpan="4"><LoadingStatus className="loading-status-compact">{t('Loading...')}</LoadingStatus></td></tr>}
           {!loadingUsers && users.length === 0 && <tr><td className="products-empty" colSpan="4">{t('No users found')}</td></tr>}
           {!loadingUsers && users.map(account => <tr key={account.id}>
             <td>{account.name}</td>
@@ -79,7 +81,7 @@ export default function Receptionists() {
       <label className="product-field"><span>{t('Name *')}</span><input value={form.name} onChange={event => setForm({ ...form, name: event.target.value })} required /></label>
       <label className="product-field"><span>{t('Email *')}</span><input type="email" autoComplete="off" value={form.email} onChange={event => setForm({ ...form, email: event.target.value })} required /></label>
       <label className="product-field"><span>{t('Password *')}</span><input type="password" autoComplete="new-password" minLength={8} value={password} onChange={event => setPassword(event.target.value)} required /><small>{t('Use at least 8 characters.')}</small></label>
-      <div className="form-actions"><button type="button" className="muted" onClick={resetForm}>{t('Reset')}</button><button type="submit" disabled={saving}>{saving ? t('Creating...') : t('Create receptionist')}</button></div>
+      <div className="form-actions"><button type="button" className="muted" disabled={saving} onClick={resetForm}>{t('Reset')}</button><LoadingButton type="submit" loading={saving} loadingText={t('Creating...')}>{t('Create receptionist')}</LoadingButton></div>
     </form>
     </section>
   </div>;

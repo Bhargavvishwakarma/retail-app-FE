@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import api from '../api';
 import { useAuth } from '../auth';
 import useSessionState from '../useSessionState';
+import LoadingButton from '../components/LoadingButton';
+import LoadingStatus from '../components/LoadingStatus';
 
 function renderInline(text, keyPrefix) {
   const parts = text.split(/(\*\*[^*]+\*\*|__[^_]+__|`[^`]+`)/g).filter(Boolean);
@@ -154,6 +156,7 @@ export default function Chat() {
   const [sendError, setSendError] = useState('');
   const [conversationId, setConversationId] = useState(() => getSavedConversationId(conversationStorageKey));
   const [conversationRestoring, setConversationRestoring] = useState(() => Boolean(getSavedConversationId(conversationStorageKey)));
+  const [loadingConversationId, setLoadingConversationId] = useState('');
   const [conversations, setConversations] = useState([]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyPage, setHistoryPage] = useState(0);
@@ -207,7 +210,8 @@ export default function Chat() {
   }, []);
 
   const openConversation = async id => {
-    if (!id) return;
+    if (!id || conversationRestoring) return;
+    setLoadingConversationId(id);
     setConversationRestoring(true);
     try {
       const response = await api.get(`/chat/conversations/${encodeURIComponent(id)}`);
@@ -232,7 +236,10 @@ export default function Chat() {
         setSendError(getErrorMessage(error));
       }
     }
-    finally { setConversationRestoring(false); }
+    finally {
+      setLoadingConversationId('');
+      setConversationRestoring(false);
+    }
   };
 
   useEffect(() => {
@@ -413,6 +420,7 @@ export default function Chat() {
             onKeyDown={handleModelKeyDown}
           >
             <span id="chat-model-value">{modelsLoading ? 'Loading models…' : (selectedModel?.displayName || (models.length ? `${selectedModel?.provider} — ${selectedModel?.model}` : 'No models available'))}</span>
+            {modelsLoading && <span className="button-spinner" aria-hidden="true" />}
             <span className="chat-model-chevron" aria-hidden="true" />
           </button>
           {modelMenuOpen && models.length > 0 && (
@@ -459,7 +467,7 @@ export default function Chat() {
                 <strong>Saved conversations</strong>
                 <span>Choose a chat to continue</span>
               </div>
-              {historyLoading && <div className="chat-history-state" role="status">Loading conversations…</div>}
+              {historyLoading && <LoadingStatus className="chat-history-loading">Loading conversations…</LoadingStatus>}
               {!historyLoading && historyError && (
                 <div className="chat-history-state chat-history-state-error" role="alert">
                   <span>{historyError}</span>
@@ -477,9 +485,10 @@ export default function Chat() {
                       className="chat-history-item"
                       key={item.conversationId}
                       aria-pressed={conversationId === item.conversationId}
-                      disabled={sending}
+                      disabled={sending || conversationRestoring}
                       onClick={() => openConversation(item.conversationId)}
                     >
+                      {loadingConversationId === item.conversationId && <span className="button-spinner" aria-hidden="true" />}
                       <span className="chat-history-item-title">{item.title || 'Untitled conversation'}</span>
                       <span className="chat-history-item-date">{formatConversationDate(item.updatedAt)}</span>
                     </button>
@@ -528,7 +537,7 @@ export default function Chat() {
           <>
             <div className="chat-messages" aria-live="polite" aria-relevant="additions text">
               {conversationRestoring ? (
-                <div className="chat-empty" role="status"><strong>Restoring your conversation…</strong></div>
+                <div className="chat-empty"><LoadingStatus>Restoring your conversation…</LoadingStatus></div>
               ) : messages.length === 0 ? (
                 <div className="chat-empty">
                   <span className="chat-empty-mark" aria-hidden="true">?</span>
@@ -582,10 +591,9 @@ export default function Chat() {
               />
               <div className="chat-composer-footer">
                 <span>Enter to send · Shift+Enter for a new line</span>
-                <button type="submit" className="chat-send-button" disabled={!canSend || !question.trim()}>
-                  {sending ? 'Sending…' : 'Send question'}
-                  <span aria-hidden="true">→</span>
-                </button>
+                <LoadingButton type="submit" className="chat-send-button" loading={sending} loadingText="Sending…" disabled={!canSend || !question.trim()}>
+                  Send question
+                </LoadingButton>
               </div>
             </form>
           </>

@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import api, { cancelSessionRequests, startSessionRequests } from './api';
+import LoadingStatus from './components/LoadingStatus';
 
 const TOKEN_KEY = 'token';
 const EXPIRY_KEY = 'tokenExpiresAt';
@@ -96,7 +97,7 @@ export function useAuth() {
 
 export function RequireAuth({ children, roles }) {
   const { user, loading } = useAuth();
-  if (loading) return <div className="auth-loading">Loading your workspace…</div>;
+  if (loading) return <div className="auth-loading"><LoadingStatus>Loading your workspace…</LoadingStatus></div>;
   if (!user) return <Navigate to="/login" replace />;
   if (roles && !roles.includes(user.role)) return <Navigate to={user.role === 'OWNER' ? '/' : '/pos'} replace />;
   return children;

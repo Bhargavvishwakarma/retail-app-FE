@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth';
 import { useLanguage } from '../i18n';
+import LoadingButton from '../components/LoadingButton';
 
 export default function Login() {
   const { user, loading, login } = useAuth();
@@ -39,7 +40,7 @@ export default function Login() {
       {error && <div className="error" role="alert">{error}</div>}
       <label>{t('Email')}<input type="email" autoComplete="username" value={email} onChange={event => setEmail(event.target.value)} required autoFocus /></label>
       <label>{t('Password')}<input type="password" autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} required /></label>
-      <button type="submit" disabled={submitting}>{submitting ? t('Signing in...') : t('Sign in')}</button>
+      <LoadingButton type="submit" loading={submitting} loadingText={t('Signing in...')}>{t('Sign in')}</LoadingButton>
     </form>
   </main>;
 }

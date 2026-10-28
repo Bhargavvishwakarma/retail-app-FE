@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api';
 import { useLanguage } from '../i18n';
+import LoadingStatus from '../components/LoadingStatus';
 
 const metrics = [
   { key: 'revenue', label: "Today's Revenue", value: summary => `Rs. ${Number(summary.todayRevenue).toFixed(2)}`, tone: 'revenue' },
@@ -33,7 +34,7 @@ export default function Dashboard() {
   useEffect(() => { loadSummary(); }, [loadSummary]);
 
   if (loading) {
-    return <section className="dashboard-state" role="status"><span className="dashboard-state-mark" aria-hidden="true">…</span><p>{t('Loading...')}</p></section>;
+    return <section className="dashboard-state"><LoadingStatus>{t('Loading...')}</LoadingStatus></section>;
   }
 
   if (error || !summary) {
