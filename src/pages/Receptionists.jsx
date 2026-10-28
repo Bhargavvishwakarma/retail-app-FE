@@ -7,6 +7,8 @@ import LoadingButton from '../components/LoadingButton';
 import LoadingStatus from '../components/LoadingStatus';
 import Pagination from '../components/Pagination';
 
+const USER_LIST_PAGE_SIZE = 10;
+
 export default function Receptionists() {
   const { t } = useLanguage();
   const { user } = useAuth();
@@ -25,7 +27,7 @@ export default function Receptionists() {
   useEffect(() => {
     let current = true;
     setLoadingUsers(true);
-    api.get('/auth/users', { params: { page: userPage, size: 25 } })
+    api.get('/auth/users', { params: { page: userPage, size: USER_LIST_PAGE_SIZE } })
       .then(response => {
         if (!current) return;
         setUsers(response.data.content);
@@ -84,7 +86,7 @@ export default function Receptionists() {
           </tr>)}
         </tbody>
       </table></div>
-      {!loadingUsers && <Pagination page={userPage} size={25} total={userTotal} onPageChange={setUserPage} />}
+      {!loadingUsers && <Pagination page={userPage} size={USER_LIST_PAGE_SIZE} total={userTotal} onPageChange={setUserPage} />}
     </section>
 
     <section className="create-receptionist-section">

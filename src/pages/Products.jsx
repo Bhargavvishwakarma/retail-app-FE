@@ -11,6 +11,7 @@ const emptyForm = {
   name: '', sku: '', description: '', size: '', color: '',
   price: '', cost: '', stockQuantity: 0, category: '', active: true
 };
+const PRODUCT_LIST_PAGE_SIZE = 10;
 
 export default function Products() {
   const { t } = useLanguage();
@@ -48,7 +49,7 @@ export default function Products() {
   useEffect(() => {
     let current = true;
     setLoadingProducts(true);
-    api.get('/products', { params: { search: debouncedSearch, page: productPage, size: 25 } })
+    api.get('/products', { params: { search: debouncedSearch, page: productPage, size: PRODUCT_LIST_PAGE_SIZE } })
       .then(response => {
         if (!current) return;
         setProducts(response.data.content);
@@ -216,7 +217,7 @@ export default function Products() {
           ))}
         </tbody>
       </table></div>
-      {!loadingProducts && <Pagination page={productPage} size={25} total={productTotal} onPageChange={setProductPage} />}
+      {!loadingProducts && <Pagination page={productPage} size={PRODUCT_LIST_PAGE_SIZE} total={productTotal} onPageChange={setProductPage} />}
     </div>
   );
 }

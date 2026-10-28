@@ -58,6 +58,8 @@ const kannada = {
   'Payment': 'ಪಾವತಿ',
   'Previous': 'ಹಿಂದಿನದು',
   'Next': 'ಮುಂದಿನದು',
+  'First': 'ಮೊದಲ ಪುಟ',
+  'Last': 'ಕೊನೆ',
   'Page': 'ಪುಟ',
   'of': 'ರಲ್ಲಿ',
   'Pagination': 'ಪುಟಗಳ ಸಂಚರಣೆ',

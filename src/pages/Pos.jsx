@@ -7,6 +7,9 @@ import LoadingButton from '../components/LoadingButton';
 import LoadingStatus from '../components/LoadingStatus';
 import Pagination from '../components/Pagination';
 
+const PRODUCT_PAGE_SIZE = 12;
+const CUSTOMER_LOOKUP_PAGE_SIZE = 10;
+
 export default function Pos() {
   const { t } = useLanguage();
   const { user } = useAuth();
@@ -45,7 +48,7 @@ export default function Pos() {
     let current = true;
     setProductsLoading(true);
     setError('');
-    api.get('/products', { params: { search: debouncedSearch, page: productPage, size: 24 } })
+    api.get('/products', { params: { search: debouncedSearch, page: productPage, size: PRODUCT_PAGE_SIZE } })
       .then(response => {
         if (!current) return;
         const result = response.data;
@@ -75,7 +78,7 @@ export default function Pos() {
     if (!customerPickerOpen) return undefined;
     let current = true;
     setCustomersLoading(true);
-    api.get('/customers', { params: { search: debouncedCustomerSearch, page: customerPage, size: 20 } })
+    api.get('/customers', { params: { search: debouncedCustomerSearch, page: customerPage, size: CUSTOMER_LOOKUP_PAGE_SIZE } })
       .then(response => {
         if (!current) return;
         setCustomers(response.data.content);
@@ -248,7 +251,7 @@ export default function Pos() {
             ))}
             {!productsLoading && products.length === 0 && <div className="catalog-empty"><span aria-hidden="true">⌕</span><strong>No products found</strong><p>Try another name or SKU.</p></div>}
           </div>
-          {!productsLoading && <Pagination page={productPage} size={24} total={productTotal} onPageChange={setProductPage} />}
+          {!productsLoading && <Pagination page={productPage} size={PRODUCT_PAGE_SIZE} total={productTotal} onPageChange={setProductPage} />}
         </div>
 
         <div className="pos-right">
@@ -319,7 +322,7 @@ export default function Pos() {
                 {matchingCustomers.length === 0 && <div className="customer-empty">{t('No customers found')}</div>}
                 </>}
                 </div>
-                {!customersLoading && <div onMouseDown={event => event.preventDefault()}><Pagination page={customerPage} size={20} total={customerTotal} onPageChange={setCustomerPage} /></div>}
+                {!customersLoading && <div onMouseDown={event => event.preventDefault()}><Pagination page={customerPage} size={CUSTOMER_LOOKUP_PAGE_SIZE} total={customerTotal} onPageChange={setCustomerPage} /></div>}
               </div>
             )}
           </div>

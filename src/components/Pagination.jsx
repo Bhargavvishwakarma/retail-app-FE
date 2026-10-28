@@ -7,12 +7,18 @@ export default function Pagination({ page, size, total, onPageChange }) {
 
   return (
     <nav className="pagination" aria-label={t('Pagination')}>
+      <button type="button" className="muted" onClick={() => onPageChange(0)} disabled={page === 0}>
+        {t('First')}
+      </button>
       <button type="button" className="muted" onClick={() => onPageChange(page - 1)} disabled={page === 0}>
         {t('Previous')}
       </button>
       <span>{t('Page')} {page + 1} {t('of')} {pageCount}</span>
       <button type="button" className="muted" onClick={() => onPageChange(page + 1)} disabled={page + 1 >= pageCount}>
         {t('Next')}
+      </button>
+      <button type="button" className="muted" onClick={() => onPageChange(pageCount - 1)} disabled={page + 1 >= pageCount}>
+        {t('Last')}
       </button>
     </nav>
   );

@@ -8,6 +8,7 @@ import LoadingStatus from '../components/LoadingStatus';
 import Pagination from '../components/Pagination';
 
 const emptyForm = { name: '', phone: '', email: '', address: '' };
+const CUSTOMER_LIST_PAGE_SIZE = 10;
 
 export default function Customers() {
   const { t } = useLanguage();
@@ -41,7 +42,7 @@ export default function Customers() {
   useEffect(() => {
     let current = true;
     setLoadingCustomers(true);
-    api.get('/customers', { params: { search: debouncedSearch, page: customerPage, size: 25 } })
+    api.get('/customers', { params: { search: debouncedSearch, page: customerPage, size: CUSTOMER_LIST_PAGE_SIZE } })
       .then(response => {
         if (!current) return;
         setCustomers(response.data.content);
@@ -152,7 +153,7 @@ export default function Customers() {
           ))}
         </tbody>
       </table></div>
-      {!loadingCustomers && <Pagination page={customerPage} size={25} total={customerTotal} onPageChange={setCustomerPage} />}
+      {!loadingCustomers && <Pagination page={customerPage} size={CUSTOMER_LIST_PAGE_SIZE} total={customerTotal} onPageChange={setCustomerPage} />}
     </div>
   );
 }

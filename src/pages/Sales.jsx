@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import api from '../api';
 import { useLanguage } from '../i18n';
 import { useAuth } from '../auth';
@@ -35,6 +35,8 @@ export default function Sales() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [loadingSales, setLoadingSales] = useState(true);
   const [selected, setSelected] = useState(/** @type {import('../types').Sale | null} */ (null));
+  const detailsRef = useRef(null);
+  const shouldScrollToDetails = useRef(false);
   const [selectedSaleId, setSelectedSaleId] = useSessionState(`retail-draft:${draftKey}:selected-sale`, '');
   const [loadingSaleId, setLoadingSaleId] = useState('');
   const [error, setError] = useState('');
@@ -71,15 +73,24 @@ export default function Sales() {
     }
   }, []);
 
+  useEffect(() => {
+    if (!selected || !shouldScrollToDetails.current) return;
+    shouldScrollToDetails.current = false;
+    detailsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    detailsRef.current?.focus({ preventScroll: true });
+  }, [selected]);
+
   const view = async (id) => {
     if (loadingSaleId) return;
     setError('');
     setLoadingSaleId(id);
+    shouldScrollToDetails.current = true;
     try {
       const response = await api.get('/sales/' + id);
       setSelected(response.data);
       setSelectedSaleId(id);
     } catch (err) {
+      shouldScrollToDetails.current = false;
       setError(err.response?.data?.error || t('Request failed'));
     } finally {
       setLoadingSaleId('');
@@ -131,8 +142,8 @@ export default function Sales() {
       {loadingSaleId && !selected && <LoadingStatus>Loading sale details...</LoadingStatus>}
 
       {selected && (
-        <div className="detail">
-          <h2>{t('Sale')} {selected.saleNumber}</h2>
+        <div className="detail sale-detail" ref={detailsRef} tabIndex="-1" aria-labelledby="sale-detail-title">
+          <h2 id="sale-detail-title">{t('Sale')} {selected.saleNumber}</h2>
           <p>{t('Date')}: {new Date(selected.saleDate).toLocaleString()}</p>
           <p>{t('Customer')}: {selected.customer ? selected.customer.name : t('Walk-in')}</p>
           <p>{t('Payment')}: {selected.paymentMethod}</p>
