@@ -60,6 +60,11 @@ function Workspace() {
 
   return <div className={`layout${location.pathname === '/chat' ? ' chat-workspace' : ''}`} data-theme={theme}>
     <header className="mobile-header">
+      <button className="mobile-menu-toggle" type="button" aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={menuOpen} aria-controls="workspace-navigation" onClick={() => setMenuOpen(open => !open)}>
+        {menuOpen
+          ? <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+          : <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>}
+      </button>
       <div className="brand">
         <span className="brand-mark" aria-hidden="true">S</span>
         <span className="brand-copy">
@@ -67,11 +72,6 @@ function Workspace() {
           <span className="brand-description">Sarees &amp; Ready-Made</span>
         </span>
       </div>
-      <button className="mobile-menu-toggle" type="button" aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={menuOpen} aria-controls="workspace-navigation" onClick={() => setMenuOpen(open => !open)}>
-        {menuOpen
-          ? <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
-          : <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>}
-      </button>
     </header>
     {menuOpen && <button className="sidebar-backdrop" type="button" aria-label="Close navigation menu" onClick={() => setMenuOpen(false)} />}
     <aside id="workspace-navigation" className={`sidebar${menuOpen ? ' is-open' : ''}`}>
