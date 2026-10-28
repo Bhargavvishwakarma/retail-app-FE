@@ -96,7 +96,7 @@ export default function Customers() {
         </div>
       </form>
 
-      <table>
+      <div className="table-wrap customer-table-wrap"><table className="customer-table">
         <thead><tr><th>{t('Name')}</th><th>{t('Phone')}</th><th>{t('Email')}</th><th>{t('Address')}</th><th>{t('Actions')}</th></tr></thead>
         <tbody>
           {customers.map(c => (
@@ -112,7 +112,7 @@ export default function Customers() {
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
     </div>
   );
 }

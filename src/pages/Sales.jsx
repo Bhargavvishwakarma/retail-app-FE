@@ -25,9 +25,9 @@ export default function Sales() {
   };
 
   return (
-    <div>
+    <div className="sales-page">
       <h1>{t('Sales History')}</h1>
-      <table>
+      <div className="table-wrap sales-table-wrap"><table className="sales-table">
         <thead><tr><th>{t('Sale #')}</th><th>{t('Date')}</th><th>{t('Customer')}</th><th>{t('Payment')}</th><th>{t('Total')}</th><th></th></tr></thead>
         <tbody>
           {sales.map(s => (
@@ -41,7 +41,7 @@ export default function Sales() {
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
 
       {selected && (
         <div className="detail">
@@ -49,7 +49,7 @@ export default function Sales() {
           <p>{t('Date')}: {new Date(selected.saleDate).toLocaleString()}</p>
           <p>{t('Customer')}: {selected.customer ? selected.customer.name : t('Walk-in')}</p>
           <p>{t('Payment')}: {selected.paymentMethod}</p>
-          <table>
+          <div className="table-wrap sale-items-table-wrap"><table className="sale-items-table">
             <thead><tr><th>{t('Product')}</th><th>{t('Qty')}</th><th>{t('Unit Price')}</th><th>{t('Subtotal')}</th></tr></thead>
             <tbody>
               {selected.items.map(it => (
@@ -61,7 +61,7 @@ export default function Sales() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
           <h3>{t('Total')}: Rs. {Number(selected.totalAmount).toFixed(2)}</h3>
           <button onClick={() => { setSelected(null); setSelectedSaleId(''); }}>{t('Close')}</button>
         </div>

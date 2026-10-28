@@ -288,6 +288,13 @@ th { background: #f7f9f7; }
 .products-list-heading .search-box { width: min(330px, 46%); max-width: none; min-height: 43px; margin: 0; }
 .products-list-controls { display: flex; align-items: center; gap: 8px; }
 .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: #fff; box-shadow: var(--shadow); }
+.table-wrap > table { margin: 0; }
+.sales-table, .customer-table, .sale-items-table { border: 0; border-radius: 0; box-shadow: none; }
+.sales-table { min-width: 690px; }
+.customer-table { min-width: 720px; }
+.sale-items-table { min-width: 540px; }
+.sales-table th, .sales-table td, .customer-table th, .customer-table td, .sale-items-table th, .sale-items-table td { white-space: nowrap; }
+.sales-page > h1 { margin-bottom: 18px; }
 .products-table { min-width: 880px; margin: 0; border: 0; border-radius: 0; box-shadow: none; }
 .products-table th { padding: 13px 15px; color: #65736b; font-size: 10px; letter-spacing: .07em; text-transform: uppercase; white-space: nowrap; }
 .products-table td { padding: 14px 15px; color: #33443b; font-size: 12px; }
