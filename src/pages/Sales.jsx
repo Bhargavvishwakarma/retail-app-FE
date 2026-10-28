@@ -7,6 +7,22 @@ import LoadingButton from '../components/LoadingButton';
 import LoadingStatus from '../components/LoadingStatus';
 import Pagination from '../components/Pagination';
 
+const formatLocalDate = date => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getDateRangeParams = range => {
+  if (range === 'all') return {};
+  const end = new Date();
+  end.setHours(0, 0, 0, 0);
+  const start = new Date(end);
+  start.setDate(start.getDate() - Number(range) + 1);
+  return { from: formatLocalDate(start), to: formatLocalDate(end) };
+};
+
 export default function Sales() {
   const { t } = useLanguage();
   const { user } = useAuth();
@@ -14,6 +30,7 @@ export default function Sales() {
   const [sales, setSales] = useState(/** @type {import('../types').Sale[]} */ ([]));
   const [salesTotal, setSalesTotal] = useState(0);
   const [salesPage, setSalesPage] = useState(0);
+  const [dateRange, setDateRange] = useState('1');
   const [loadingSales, setLoadingSales] = useState(true);
   const [selected, setSelected] = useState(/** @type {import('../types').Sale | null} */ (null));
   const [selectedSaleId, setSelectedSaleId] = useSessionState(`retail-draft:${draftKey}:selected-sale`, '');
@@ -23,7 +40,7 @@ export default function Sales() {
   useEffect(() => {
     let current = true;
     setLoadingSales(true);
-    api.get('/sales', { params: { page: salesPage, size: 25 } })
+    api.get('/sales', { params: { page: salesPage, size: 25, ...getDateRangeParams(dateRange) } })
       .then(response => {
         if (!current) return;
         setSales(response.data.content);
@@ -32,7 +49,7 @@ export default function Sales() {
       .catch(err => { if (current) setError(err.response?.data?.error || t('Request failed')); })
       .finally(() => { if (current) setLoadingSales(false); });
     return () => { current = false; };
-  }, [salesPage, t]);
+  }, [salesPage, dateRange, t]);
 
   useEffect(() => {
     if (selectedSaleId) {
@@ -61,7 +78,19 @@ export default function Sales() {
 
   return (
     <div className="sales-page">
-      <h1>{t('Sales History')}</h1>
+      <div className="sales-toolbar">
+        <h1>{t('Sales History')}</h1>
+        <label className="sales-date-filter">
+          <span>{t('Date range')}</span>
+          <select value={dateRange} onChange={event => { setDateRange(event.target.value); setSalesPage(0); }}>
+            <option value="1">{t('Today')}</option>
+            <option value="7">{t('Last 7 days')}</option>
+            <option value="30">{t('Last 30 days')}</option>
+            <option value="90">{t('Last 90 days')}</option>
+            <option value="all">{t('All time')}</option>
+          </select>
+        </label>
+      </div>
       {error && <p className="error" role="alert">{error}</p>}
       <div className="table-wrap sales-table-wrap"><table className="sales-table" aria-busy={loadingSales}>
         <thead><tr><th>{t('Sale #')}</th><th>{t('Date')}</th><th>{t('Customer')}</th><th>{t('Payment')}</th><th>{t('Total')}</th><th></th></tr></thead>

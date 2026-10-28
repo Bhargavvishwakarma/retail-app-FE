@@ -311,7 +311,10 @@ th { background: #f7f9f7; }
 .customer-table { min-width: 720px; }
 .sale-items-table { min-width: 540px; }
 .sales-table th, .sales-table td, .customer-table th, .customer-table td, .sale-items-table th, .sale-items-table td { white-space: nowrap; }
-.sales-page > h1 { margin-bottom: 18px; }
+.sales-toolbar { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.sales-toolbar h1 { margin: 0; }
+.sales-date-filter { display: grid; min-width: 170px; gap: 5px; color: var(--muted); font-size: 12px; }
+.sales-date-filter select { min-height: 40px; }
 .products-table { min-width: 880px; margin: 0; border: 0; border-radius: 0; box-shadow: none; }
 .products-table th { padding: 13px 15px; color: #65736b; font-size: 10px; letter-spacing: .07em; text-transform: uppercase; white-space: nowrap; }
 .products-table td { padding: 14px 15px; color: #33443b; font-size: 12px; }
@@ -354,6 +357,8 @@ th { background: #f7f9f7; }
 .user-role-badge.receptionist { background: #eef3f8; color: #54708a; }
 
 @media (max-width: 700px) {
+  .sales-toolbar { align-items: stretch; flex-direction: column; }
+  .sales-date-filter { width: 100%; }
   .login-card { padding: 27px 22px; }
   .sidebar-user { margin-top: 12px; padding-top: 12px; }
   .receptionist-form { grid-template-columns: 1fr; }
