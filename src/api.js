@@ -13,7 +13,9 @@ export function cancelSessionRequests() {
 }
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
+  baseURL: import.meta.env.DEV
+    ? 'http://localhost:8080/api'
+    : 'https://retail-app-be.onrender.com/api'
 });
 
 api.interceptors.request.use(config => {
