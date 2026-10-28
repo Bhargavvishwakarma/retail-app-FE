@@ -18,10 +18,29 @@ function Workspace() {
   const [theme, setTheme] = useState(() => user.workspaceTheme || 'forest');
   const [themeSaving, setThemeSaving] = useState(false);
   const [themeError, setThemeError] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     setTheme(user.workspaceTheme || 'forest');
   }, [user.id, user.workspaceTheme]);
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const closeOnEscape = event => {
+      if (event.key === 'Escape') setMenuOpen(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', closeOnEscape);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [menuOpen]);
 
   const selectTheme = async nextTheme => {
     if (themeSaving || nextTheme === theme) return;
@@ -40,7 +59,22 @@ function Workspace() {
   };
 
   return <div className={`layout${location.pathname === '/chat' ? ' chat-workspace' : ''}`} data-theme={theme}>
-    <aside className="sidebar">
+    <header className="mobile-header">
+      <div className="brand">
+        <span className="brand-mark" aria-hidden="true">S</span>
+        <span className="brand-copy">
+          <span className="brand-name">Sumangali</span>
+          <span className="brand-description">Sarees &amp; Ready-Made</span>
+        </span>
+      </div>
+      <button className="mobile-menu-toggle" type="button" aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={menuOpen} aria-controls="workspace-navigation" onClick={() => setMenuOpen(open => !open)}>
+        {menuOpen
+          ? <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+          : <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>}
+      </button>
+    </header>
+    {menuOpen && <button className="sidebar-backdrop" type="button" aria-label="Close navigation menu" onClick={() => setMenuOpen(false)} />}
+    <aside id="workspace-navigation" className={`sidebar${menuOpen ? ' is-open' : ''}`}>
       <div className="brand">
         <span className="brand-mark" aria-hidden="true">S</span>
         <span className="brand-copy">
@@ -58,16 +92,19 @@ function Workspace() {
           </div>
         </details>
       </div>
+      <button className="sidebar-close-button" type="button" aria-label="Close navigation menu" onClick={() => setMenuOpen(false)}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+      </button>
       <nav aria-label="Main navigation">
-        {user.role === 'OWNER' && <NavLink to="/" end><span className="nav-icon" aria-hidden="true">&#8962;</span>{t('Dashboard')}</NavLink>}
-        <NavLink to="/pos"><span className="nav-icon" aria-hidden="true">&#43;</span>{t('New Sale (POS)')}</NavLink>
-        <NavLink to="/products"><span className="nav-icon" aria-hidden="true">&#9671;</span>{t('Products')}</NavLink>
-        <NavLink to="/customers"><span className="nav-icon" aria-hidden="true">&#9823;</span>{t('Customers')}</NavLink>
-        {user.role === 'OWNER' && <NavLink to="/sales"><span className="nav-icon" aria-hidden="true">&#8599;</span>{t('Sales History')}</NavLink>}
-        <NavLink to="/chat"><span className="nav-icon" aria-hidden="true">?</span>{t('Chat')}</NavLink>
-        {user.role === 'OWNER' && <NavLink to="/receptionists"><span className="nav-icon" aria-hidden="true">&#43;</span>{t('Team access')}</NavLink>}
+        {user.role === 'OWNER' && <NavLink to="/" end onClick={() => setMenuOpen(false)}><span className="nav-icon" aria-hidden="true">&#8962;</span>{t('Dashboard')}</NavLink>}
+        <NavLink to="/pos" onClick={() => setMenuOpen(false)}><span className="nav-icon" aria-hidden="true">&#43;</span>{t('New Sale (POS)')}</NavLink>
+        <NavLink to="/products" onClick={() => setMenuOpen(false)}><span className="nav-icon" aria-hidden="true">&#9671;</span>{t('Products')}</NavLink>
+        <NavLink to="/customers" onClick={() => setMenuOpen(false)}><span className="nav-icon" aria-hidden="true">&#9823;</span>{t('Customers')}</NavLink>
+        {user.role === 'OWNER' && <NavLink to="/sales" onClick={() => setMenuOpen(false)}><span className="nav-icon" aria-hidden="true">&#8599;</span>{t('Sales History')}</NavLink>}
+        <NavLink to="/chat" onClick={() => setMenuOpen(false)}><span className="nav-icon" aria-hidden="true">?</span>{t('Chat')}</NavLink>
+        {user.role === 'OWNER' && <NavLink to="/receptionists" onClick={() => setMenuOpen(false)}><span className="nav-icon" aria-hidden="true">&#43;</span>{t('Team access')}</NavLink>}
       </nav>
-      <Link to="/profile" className="sidebar-user" aria-label="Open profile settings">
+      <Link to="/profile" className="sidebar-user" aria-label="Open profile settings" onClick={() => setMenuOpen(false)}>
         <div><strong>{user.name}</strong><span>{user.role === 'OWNER' ? t('Owner') : t('Receptionist')}</span></div>
         <span className="sidebar-user-chevron" aria-hidden="true">›</span>
       </Link>
