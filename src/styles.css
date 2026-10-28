@@ -1,7 +1,6 @@
 * { box-sizing: border-box; }
 body { margin: 0; font-family: Inter, 'Noto Sans Kannada', 'Nirmala UI', 'Segoe UI', Arial, sans-serif; background: #f4f6f8; color: #1f2937; letter-spacing: 0.01em; }
-#root, #root * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-#root input, #root textarea, #root [contenteditable="true"] { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+button, button * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 
 .layout { display: flex; min-height: 100vh; }
 .sidebar { width: 250px; background: #1f2937; color: #fff; padding: 22px 18px; flex-shrink: 0; }

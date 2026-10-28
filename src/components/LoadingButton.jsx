@@ -7,7 +7,9 @@ export default function LoadingButton({ loading = false, loadingText, children, 
       aria-busy={loading || undefined}
     >
       {loading && <span className="button-spinner" aria-hidden="true" />}
-      <span aria-live={loading ? 'polite' : undefined}>{loading && loadingText ? loadingText : children}</span>
+      {loading && loadingText
+        ? <span aria-live="polite">{loadingText}</span>
+        : children}
     </button>
   );
 }
