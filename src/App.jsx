@@ -133,6 +133,75 @@ function Workspace() {
   </div>;
 }
 
+function LongPressTextSelection({ children }) {
+  useEffect(() => {
+    let target = null;
+    let timer = null;
+    let startX = 0;
+    let startY = 0;
+    let selectionEnabled = false;
+
+    const clearTarget = () => {
+      target?.classList.remove('long-press-text-select');
+      target = null;
+      selectionEnabled = false;
+    };
+    const cancel = () => {
+      if (timer) window.clearTimeout(timer);
+      timer = null;
+      if (!selectionEnabled) clearTarget();
+    };
+    const onPointerDown = event => {
+      if (event.pointerType !== 'touch' || event.button !== 0) return;
+      const root = document.querySelector('.app-selection-root');
+      const element = event.target instanceof Element ? event.target : null;
+      if (!root?.contains(element)) return;
+      if (element.closest('input, textarea, select, button, a, [contenteditable="true"], [role="button"], [role="link"]')) return;
+
+      if (selectionEnabled && window.getSelection()?.isCollapsed) clearTarget();
+      cancel();
+      target = element;
+      startX = event.clientX;
+      startY = event.clientY;
+      timer = window.setTimeout(() => {
+        target?.classList.add('long-press-text-select');
+        selectionEnabled = true;
+        timer = null;
+      }, 450);
+    };
+    const onPointerMove = event => {
+      if (target && !selectionEnabled && Math.hypot(event.clientX - startX, event.clientY - startY) > 10) cancel();
+    };
+    const onPointerUp = () => {
+      if (timer) window.clearTimeout(timer);
+      timer = null;
+      if (!selectionEnabled) clearTarget();
+      else window.setTimeout(() => {
+        if (window.getSelection()?.isCollapsed) clearTarget();
+      }, 0);
+    };
+    const onSelectionChange = () => {
+      if (selectionEnabled && window.getSelection()?.isCollapsed) clearTarget();
+    };
+
+    document.addEventListener('pointerdown', onPointerDown, true);
+    document.addEventListener('pointermove', onPointerMove, true);
+    document.addEventListener('pointerup', onPointerUp, true);
+    document.addEventListener('pointercancel', onPointerUp, true);
+    document.addEventListener('selectionchange', onSelectionChange);
+    return () => {
+      if (timer) window.clearTimeout(timer);
+      document.removeEventListener('pointerdown', onPointerDown, true);
+      document.removeEventListener('pointermove', onPointerMove, true);
+      document.removeEventListener('pointerup', onPointerUp, true);
+      document.removeEventListener('pointercancel', onPointerUp, true);
+      document.removeEventListener('selectionchange', onSelectionChange);
+    };
+  }, []);
+
+  return <div className="app-selection-root">{children}</div>;
+}
+
 const themes = [
   { id: 'forest', name: 'Forest green', color: '#19745d' },
   { id: 'ocean', name: 'Ocean blue', color: '#3269a8' },
@@ -169,8 +238,8 @@ function Profile({ user, theme, themeSaving, themeError, onThemeChange, onLogout
 }
 
 export default function App() {
-  return <LanguageProvider><AuthProvider><BrowserRouter><Routes>
+  return <LanguageProvider><AuthProvider><BrowserRouter><LongPressTextSelection><Routes>
     <Route path="/login" element={<Login />} />
     <Route path="/*" element={<RequireAuth><Workspace /></RequireAuth>} />
-  </Routes></BrowserRouter></AuthProvider></LanguageProvider>;
+  </Routes></LongPressTextSelection></BrowserRouter></AuthProvider></LanguageProvider>;
 }
