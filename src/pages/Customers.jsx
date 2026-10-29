@@ -13,6 +13,7 @@ const CUSTOMER_LIST_PAGE_SIZE = 10;
 export default function Customers() {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const canManageCustomers = user.role === 'OWNER';
   const draftKey = user.id || user.email || 'current-user';
   const [customers, setCustomers] = useState(/** @type {import('../types').Customer[]} */ ([]));
   const [customerTotal, setCustomerTotal] = useState(0);
@@ -69,7 +70,7 @@ export default function Customers() {
     setError('');
     setSaving(true);
     try {
-      if (editingId) await api.put('/customers/' + editingId, form);
+      if (editingId && canManageCustomers) await api.put('/customers/' + editingId, form);
       else await api.post('/customers', form);
       setForm(emptyForm);
       setEditingId(null);
@@ -106,7 +107,7 @@ export default function Customers() {
   return (
     <div>
       <h1>{t('Customers')}</h1>
-      {error && <p className="error">{error}</p>}
+      {error && <p className="error" role="alert">{error}</p>}
       {pendingDelete && <div className="confirm-overlay" onMouseDown={event => { if (event.target === event.currentTarget && !deleting) setPendingDelete(null); }} onKeyDown={event => { if (event.key === 'Escape' && !deleting) setPendingDelete(null); }}>
         <section className="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-customer-title" aria-describedby="delete-customer-description">
           <div className="confirm-icon" aria-hidden="true">!</div>
@@ -135,20 +136,20 @@ export default function Customers() {
 
       <div className="products-list-heading"><div><h2>{t('Customer list')}</h2><p>{customerTotal} {t('customers')}</p></div><div className="products-list-controls"><input className="search-box" aria-label={t('Search customers')} placeholder={t('Search customers by name, phone, or email...')} value={search} onChange={event => setSearch(event.target.value)} /><button type="button" className="muted" onClick={() => { setSearch(''); setCustomerPage(0); }}>{t('Reset')}</button></div></div>
       <div className="table-wrap customer-table-wrap"><table className="customer-table" aria-busy={loadingCustomers}>
-        <thead><tr><th>{t('Name')}</th><th>{t('Phone')}</th><th>{t('Email')}</th><th>{t('Address')}</th><th>{t('Actions')}</th></tr></thead>
+        <thead><tr><th>{t('Name')}</th><th>{t('Phone')}</th><th>{t('Email')}</th><th>{t('Address')}</th>{canManageCustomers && <th>{t('Actions')}</th>}</tr></thead>
         <tbody aria-busy={loadingCustomers}>
-          {loadingCustomers && <SkeletonTableRows columns={5} label={t('Loading customers...')} />}
-          {!loadingCustomers && customers.length === 0 && <tr><td className="products-empty" colSpan="5">{t('No customers found')}</td></tr>}
+          {loadingCustomers && <SkeletonTableRows columns={canManageCustomers ? 5 : 4} label={t('Loading customers...')} />}
+          {!loadingCustomers && customers.length === 0 && <tr><td className="products-empty" colSpan={canManageCustomers ? 5 : 4}>{t('No customers found')}</td></tr>}
           {!loadingCustomers && customers.map(c => (
             <tr key={c.id}>
               <td>{c.name}</td>
               <td>{c.phone}</td>
               <td>{c.email}</td>
               <td>{c.address}</td>
-              <td>
-                <button onClick={() => handleEdit(c)}>{t('Edit')}</button>{' '}
-                {user.role === 'OWNER' && <button className="danger" onClick={() => { setDeleteError(''); setPendingDelete(c); }}>{t('Delete')}</button>}
-              </td>
+              {canManageCustomers && <td>
+                <button type="button" onClick={() => handleEdit(c)}>{t('Edit')}</button>{' '}
+                <button type="button" className="danger" onClick={() => { setDeleteError(''); setPendingDelete(c); }}>{t('Delete')}</button>
+              </td>}
             </tr>
           ))}
         </tbody>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, Link, useLocation } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
+import OperationalDashboard from './pages/OperationalDashboard';
 import Products from './pages/Products';
 import Pos from './pages/Pos';
 import Customers from './pages/Customers';
@@ -97,7 +98,7 @@ function Workspace() {
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
       </button>
       <nav aria-label="Main navigation">
-        {user.role === 'OWNER' && <NavLink to="/" end onClick={() => setMenuOpen(false)}><span className="nav-icon" aria-hidden="true">&#8962;</span>{t('Dashboard')}</NavLink>}
+        <NavLink to="/" end onClick={() => setMenuOpen(false)}><span className="nav-icon" aria-hidden="true">&#8962;</span>{t('Dashboard')}</NavLink>
         <NavLink to="/pos" onClick={() => setMenuOpen(false)}><span className="nav-icon" aria-hidden="true">&#43;</span>{t('New Sale (POS)')}</NavLink>
         <NavLink to="/products" onClick={() => setMenuOpen(false)}><span className="nav-icon" aria-hidden="true">&#9671;</span>{t('Products')}</NavLink>
         <NavLink to="/customers" onClick={() => setMenuOpen(false)}><span className="nav-icon" aria-hidden="true">&#9823;</span>{t('Customers')}</NavLink>
@@ -119,13 +120,13 @@ function Workspace() {
         <NavLink to="/profile" className="workspace-profile-action">Profile</NavLink>
       </div>
       <Routes>
-        <Route path="/" element={user.role === 'OWNER' ? <Dashboard /> : <Navigate to="/pos" replace />} />
+        <Route path="/" element={user.role === 'OWNER' ? <Dashboard /> : <OperationalDashboard />} />
         <Route path="/pos" element={<Pos />} />
         <Route path="/products" element={<Products />} />
         <Route path="/customers" element={<Customers />} />
         <Route path="/chat" element={<Chat />} />
-        <Route path="/sales" element={user.role === 'OWNER' ? <Sales /> : <Navigate to="/pos" replace />} />
-        <Route path="/receptionists" element={user.role === 'OWNER' ? <Receptionists /> : <Navigate to="/pos" replace />} />
+        <Route path="/sales" element={<RequireAuth roles={['OWNER']}><Sales /></RequireAuth>} />
+        <Route path="/receptionists" element={<RequireAuth roles={['OWNER']}><Receptionists /></RequireAuth>} />
         <Route path="/profile" element={<Profile user={user} theme={theme} themeSaving={themeSaving} themeError={themeError} onThemeChange={selectTheme} onLogout={logout} />} />
         <Route path="*" element={<Navigate to={user.role === 'OWNER' ? '/' : '/pos'} replace />} />
       </Routes>

@@ -63,6 +63,14 @@ export interface AppUser {
   role: UserRole;
   workspaceTheme: 'forest' | 'ocean' | 'berry' | 'clay';
   createdAt?: string;
+  active: boolean;
+}
+
+export interface OperationalDashboardSummary {
+  todaySalesCount: number;
+  totalProducts: number;
+  lowStockCount: number;
+  totalCustomers: number;
 }
 
 export interface CartItem {

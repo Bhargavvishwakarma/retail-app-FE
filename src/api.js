@@ -13,15 +13,16 @@ export function cancelSessionRequests() {
 }
 
 const api = axios.create({
-  baseURL: import.meta.env.DEV
-    ? 'http://localhost:8080/api'
-    : 'https://retail-app-be.onrender.com/api'
+  baseURL: import.meta.env.VITE_API_URL || '/api'
 });
 
 api.interceptors.request.use(config => {
-  const isLogin = String(config.url || '').includes('/auth/login');
-  if (!isLogin) {
-    const token = localStorage.getItem('token');
+  const url = String(config.url || '');
+  const isPublicAuth = ['/auth/login', '/auth/google'].some(path => url.includes(path));
+  if (!isPublicAuth) {
+    let token = null;
+    try { token = sessionStorage.getItem('retail-token'); }
+    catch { /* Restricted browser storage is treated as a signed-out session. */ }
     if (!token || !sessionRequests) return Promise.reject(new axios.CanceledError('No active session'));
     config.headers.Authorization = `Bearer ${token}`;
     config.signal = sessionRequests.signal;
@@ -32,7 +33,9 @@ api.interceptors.request.use(config => {
 api.interceptors.response.use(
   response => response,
   error => {
-    if (error.response?.status === 401 && !String(error.config?.url || '').includes('/auth/login')) {
+    const url = String(error.config?.url || '');
+    const isPublicAuth = ['/auth/login', '/auth/google'].some(path => url.includes(path));
+    if (error.response?.status === 401 && !isPublicAuth) {
       window.dispatchEvent(new Event('auth:unauthorized'));
     }
     return Promise.reject(error);

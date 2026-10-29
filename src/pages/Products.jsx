@@ -198,7 +198,7 @@ export default function Products() {
   return (
     <div className="products-page">
       <header className="products-heading">
-        <div><span className="eyebrow">{t('INVENTORY')}</span><h1>{t('Products')}</h1><p>{lowStockOnly ? t('Showing products with fewer than 5 in stock.') : t('Manage your products, stock, and selling prices.')}</p></div>
+        <div><span className="eyebrow">{t('INVENTORY')}</span><h1>{t('Products')}</h1><p>{lowStockOnly ? t('Showing products with fewer than 5 in stock.') : t(isOwner ? 'Manage your products, stock, and selling prices.' : 'Browse products, stock, and category details.')}</p></div>
         <div className="products-count"><strong>{visibleProductTotal}</strong><span>{t('products')}</span></div>
       </header>
       {error && <p className="error">{error}</p>}
