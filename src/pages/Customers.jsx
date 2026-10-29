@@ -4,8 +4,8 @@ import { useLanguage } from '../i18n';
 import { useAuth } from '../auth';
 import useSessionState from '../useSessionState';
 import LoadingButton from '../components/LoadingButton';
-import LoadingStatus from '../components/LoadingStatus';
 import Pagination from '../components/Pagination';
+import SkeletonTableRows from '../components/SkeletonTableRows';
 
 const emptyForm = { name: '', phone: '', email: '', address: '' };
 const CUSTOMER_LIST_PAGE_SIZE = 10;
@@ -134,10 +134,10 @@ export default function Customers() {
       </form>
 
       <div className="products-list-heading"><div><h2>{t('Customer list')}</h2><p>{customerTotal} {t('customers')}</p></div><div className="products-list-controls"><input className="search-box" aria-label={t('Search customers')} placeholder={t('Search customers by name, phone, or email...')} value={search} onChange={event => setSearch(event.target.value)} /><button type="button" className="muted" onClick={() => { setSearch(''); setCustomerPage(0); }}>{t('Reset')}</button></div></div>
-      <div className="table-wrap customer-table-wrap"><table className="customer-table">
+      <div className="table-wrap customer-table-wrap"><table className="customer-table" aria-busy={loadingCustomers}>
         <thead><tr><th>{t('Name')}</th><th>{t('Phone')}</th><th>{t('Email')}</th><th>{t('Address')}</th><th>{t('Actions')}</th></tr></thead>
         <tbody aria-busy={loadingCustomers}>
-          {loadingCustomers && <tr><td className="table-status-cell" colSpan="5"><LoadingStatus className="loading-status-compact">{t('Loading customers...')}</LoadingStatus></td></tr>}
+          {loadingCustomers && <SkeletonTableRows columns={5} label={t('Loading customers...')} />}
           {!loadingCustomers && customers.length === 0 && <tr><td className="products-empty" colSpan="5">{t('No customers found')}</td></tr>}
           {!loadingCustomers && customers.map(c => (
             <tr key={c.id}>

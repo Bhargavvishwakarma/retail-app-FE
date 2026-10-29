@@ -1,7 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import api, { cancelSessionRequests, startSessionRequests } from './api';
-import LoadingStatus from './components/LoadingStatus';
 
 const TOKEN_KEY = 'token';
 const EXPIRY_KEY = 'tokenExpiresAt';
@@ -97,8 +96,26 @@ export function useAuth() {
 
 export function RequireAuth({ children, roles }) {
   const { user, loading } = useAuth();
-  if (loading) return <div className="auth-loading"><LoadingStatus>Loading your workspace…</LoadingStatus></div>;
+  if (loading) return <WorkspaceSkeleton />;
   if (!user) return <Navigate to="/login" replace />;
   if (roles && !roles.includes(user.role)) return <Navigate to={user.role === 'OWNER' ? '/' : '/pos'} replace />;
   return children;
+}
+
+function WorkspaceSkeleton() {
+  return <div className="workspace-skeleton" aria-busy="true">
+    <span className="visually-hidden" role="status">Loading your workspace…</span>
+    <aside className="workspace-skeleton-sidebar" aria-hidden="true">
+      <span className="skeleton-block workspace-skeleton-brand" />
+      <span className="skeleton-block workspace-skeleton-language" />
+      <div>{[0, 1, 2, 3, 4, 5, 6].map(item => <span className="skeleton-block workspace-skeleton-nav" key={item} />)}</div>
+      <span className="skeleton-block workspace-skeleton-user" />
+    </aside>
+    <main className="workspace-skeleton-main" aria-hidden="true">
+      <div className="workspace-skeleton-topbar"><span className="skeleton-block" /><span className="skeleton-block" /></div>
+      <header className="workspace-skeleton-heading"><span className="skeleton-block" /><span className="skeleton-block" /><span className="skeleton-block" /></header>
+      <div className="workspace-skeleton-metrics">{[0, 1, 2, 3, 4].map(item => <div className="skeleton-block" key={item} />)}</div>
+      <div className="workspace-skeleton-section"><span className="skeleton-block" /><div className="workspace-skeleton-table"><span className="skeleton-block" />{[0, 1, 2, 3, 4].map(item => <span className="skeleton-block" key={item} />)}</div></div>
+    </main>
+  </div>;
 }

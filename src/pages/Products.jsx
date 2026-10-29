@@ -5,8 +5,8 @@ import { useLanguage } from '../i18n';
 import { useAuth } from '../auth';
 import useSessionState from '../useSessionState';
 import LoadingButton from '../components/LoadingButton';
-import LoadingStatus from '../components/LoadingStatus';
 import Pagination from '../components/Pagination';
+import SkeletonTableRows from '../components/SkeletonTableRows';
 
 const emptyForm = {
   name: '', sku: '', description: '', size: '', color: '',
@@ -228,10 +228,12 @@ export default function Products() {
         <label className="product-field"><span>{t('Stock Qty')}</span><input name="stockQuantity" type="number" min="0" placeholder="0" value={form.stockQuantity} onChange={handleChange} /></label>
         <label className="product-field"><span>{t('Size (S/M/L/XL)')}</span><input name="size" placeholder={t('e.g. S / M / XL')} value={form.size} onChange={handleChange} /></label>
         <label className="product-field"><span>{t('Color')}</span><input name="color" placeholder={t('e.g. Maroon')} value={form.color} onChange={handleChange} /></label>
-        <label className="product-field"><span>{t('Category')}</span><select name="category" value={form.category} onChange={handleChange} disabled={categoriesLoading} aria-busy={categoriesLoading}>
-          <option value="">{categoriesLoading ? t('Loading categories...') : t('No category')}</option>
-          {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select></label>
+        <label className="product-field"><span>{t('Category')}</span>{categoriesLoading
+          ? <div className="product-category-skeleton" aria-busy="true"><span className="visually-hidden" role="status">{t('Loading categories...')}</span><span className="skeleton-block" aria-hidden="true" /></div>
+          : <select name="category" value={form.category} onChange={handleChange}>
+            <option value="">{t('No category')}</option>
+            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>}</label>
         <label className="product-field product-description"><span>{t('Description')}</span><input name="description" placeholder={t('Optional details')} value={form.description} onChange={handleChange} /></label>
         <div className="product-form-footer"><label className="checkbox-label"><input type="checkbox" name="active" checked={form.active} onChange={handleChange} disabled={saving} /> {t('Active')}</label>
           <div className="form-actions"><LoadingButton type="submit" loading={saving} loadingText={t('Saving...')}>{t(editingId ? 'Update Product' : 'Add Product')}</LoadingButton>{editingId && <button type="button" className="muted" disabled={saving} onClick={() => { setEditingId(null); setForm(emptyForm); }}>{t('Cancel')}</button>}</div>
@@ -243,7 +245,7 @@ export default function Products() {
       <div className="table-wrap products-table-wrap"><table className="products-table">
         <thead><tr><th>{t('Name')}</th><th>{t('SKU')}</th><th>{t('Category')}</th><th>{t('Size (S/M/L/XL)')}</th><th>{t('Color')}</th><th>{t('Price')}</th><th>{t('Stock')}</th><th>{t('Status')}</th>{isOwner && <th>{t('Actions')}</th>}</tr></thead>
         <tbody aria-busy={loadingProducts}>
-          {loadingProducts && <tr><td className="products-empty" colSpan={isOwner ? 9 : 8}><LoadingStatus className="loading-status-compact">{t('Loading products...')}</LoadingStatus></td></tr>}
+          {loadingProducts && <SkeletonTableRows columns={isOwner ? 9 : 8} label={t('Loading products...')} />}
           {!loadingProducts && visibleProducts.length === 0 && <tr><td className="products-empty" colSpan={isOwner ? 9 : 8}>{lowStockOnly ? t('No low stock products found') : t('No products found')}</td></tr>}
           {!loadingProducts && visibleProducts.map(p => (
             <tr key={p.id} className={p.stockQuantity < 5 ? 'low-stock' : ''}>

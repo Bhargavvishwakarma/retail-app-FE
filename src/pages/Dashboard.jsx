@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api';
 import { useLanguage } from '../i18n';
-import LoadingStatus from '../components/LoadingStatus';
 
 const metrics = [
   { key: 'revenue', label: "Today's Revenue", value: summary => `Rs. ${Number(summary.todayRevenue).toFixed(2)}`, tone: 'revenue' },
@@ -34,7 +33,7 @@ export default function Dashboard() {
   useEffect(() => { loadSummary(); }, [loadSummary]);
 
   if (loading) {
-    return <section className="dashboard-state"><LoadingStatus>{t('Loading...')}</LoadingStatus></section>;
+    return <DashboardSkeleton t={t} />;
   }
 
   if (error || !summary) {
@@ -101,6 +100,55 @@ export default function Dashboard() {
               </tbody>
             </table>
           )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function DashboardSkeleton({ t }) {
+  return (
+    <div className="dashboard-page dashboard-skeleton" aria-busy="true" aria-label={t('Loading dashboard')}>
+      <span className="visually-hidden" role="status">{t('Loading...')}</span>
+      <header className="dashboard-heading">
+        <div>
+          <span className="eyebrow">{t('STORE OVERVIEW')}</span>
+          <h1>{t('Dashboard')}</h1>
+          <p>{t('A quick look at your store today.')}</p>
+        </div>
+      </header>
+
+      <section className="dashboard-metrics" aria-hidden="true">
+        {metrics.map(metric => (
+          <div className={`dashboard-metric ${metric.tone ? `dashboard-metric-${metric.tone}` : ''}`} key={metric.key}>
+            <span className="skeleton-block dashboard-skeleton-label" />
+            <span className="skeleton-block dashboard-skeleton-value" />
+          </div>
+        ))}
+      </section>
+
+      <section className="dashboard-sales" aria-hidden="true">
+        <div className="dashboard-section-heading">
+          <div>
+            <span className="eyebrow">{t('LATEST TRANSACTIONS')}</span>
+            <h2>{t('Recent Sales')}</h2>
+          </div>
+          <span className="skeleton-block dashboard-skeleton-link" />
+        </div>
+        <div className="dashboard-table-wrap">
+          <table className="dashboard-table">
+            <thead><tr><th>{t('Sale #')}</th><th>{t('Date')}</th><th>{t('Payment')}</th><th className="dashboard-total-column">{t('Total')}</th></tr></thead>
+            <tbody>
+              {[0, 1, 2, 3].map(row => (
+                <tr key={row}>
+                  <td><span className="skeleton-block dashboard-skeleton-cell dashboard-skeleton-cell-sale" /></td>
+                  <td><span className="skeleton-block dashboard-skeleton-cell dashboard-skeleton-cell-date" /></td>
+                  <td><span className="skeleton-block dashboard-skeleton-cell dashboard-skeleton-cell-payment" /></td>
+                  <td className="dashboard-total-column"><span className="skeleton-block dashboard-skeleton-cell dashboard-skeleton-cell-total" /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </section>
     </div>

@@ -15,6 +15,14 @@ export default function Login() {
   const [submitting, setSubmitting] = useState(false);
 
   if (!loading && user) return <Navigate to={user.role === 'OWNER' ? '/' : '/pos'} replace />;
+  if (loading) return <main className="login-page"><section className="login-card login-skeleton" aria-busy="true" aria-label={t('Loading sign in')}>
+    <span className="visually-hidden" role="status">{t('Loading...')}</span>
+    <div aria-hidden="true"><span className="skeleton-block login-skeleton-mark" /><span className="skeleton-block login-skeleton-brand" /><span className="skeleton-block login-skeleton-title" /><span className="skeleton-block login-skeleton-copy" />
+      <span className="skeleton-block login-skeleton-label" /><span className="skeleton-block login-skeleton-input" />
+      <span className="skeleton-block login-skeleton-label" /><span className="skeleton-block login-skeleton-input" />
+      <span className="skeleton-block login-skeleton-submit" />
+    </div>
+  </section></main>;
 
   const submit = async event => {
     event.preventDefault();

@@ -4,7 +4,6 @@ import { useLanguage } from '../i18n';
 import { useAuth } from '../auth';
 import useSessionState from '../useSessionState';
 import LoadingButton from '../components/LoadingButton';
-import LoadingStatus from '../components/LoadingStatus';
 import Pagination from '../components/Pagination';
 
 const PRODUCT_PAGE_SIZE = 12;
@@ -236,7 +235,16 @@ export default function Pos() {
           </div>
           </div>
           <div className="product-grid" aria-busy={productsLoading}>
-            {productsLoading && <LoadingStatus className="catalog-loading">{t('Loading products...')}</LoadingStatus>}
+            {productsLoading && <>
+              <span className="visually-hidden" role="status">{t('Loading products...')}</span>
+              {Array.from({ length: 6 }, (_, index) => <div className="product-card product-card-skeleton" aria-hidden="true" key={index}>
+                <span className="product-card-top"><span className="skeleton-block product-skeleton-mark" /><span className="skeleton-block product-skeleton-badge" /></span>
+                <span className="skeleton-block product-skeleton-name" />
+                <span className="skeleton-block product-skeleton-meta" />
+                <span className="skeleton-block product-skeleton-price" />
+                <span className="skeleton-block product-skeleton-add" />
+              </div>)}
+            </>}
             {!productsLoading && products.map(p => (
               <button key={p.id} type="button" className={'product-card' + (p.stockQuantity === 0 ? ' out' : '')}
                       onClick={() => p.stockQuantity > 0 && addToCart(p)} disabled={p.stockQuantity === 0 || checkingOut}
@@ -296,8 +304,9 @@ export default function Pos() {
             />
             {customerPickerOpen && (
               <div className="customer-options" aria-busy={customersLoading}>
+                {customersLoading && <span className="visually-hidden" role="status">{t('Loading customers...')}</span>}
                 <div id="customer-options" role="listbox">
-                {customersLoading && <div className="customer-empty"><LoadingStatus className="loading-status-compact">{t('Loading customers...')}</LoadingStatus></div>}
+                {customersLoading && <div className="customer-picker-skeleton" aria-hidden="true">{[0, 1, 2, 3].map(index => <span className="skeleton-block" key={index} />)}</div>}
                 {!customersLoading && <>
                 <button
                   type="button"

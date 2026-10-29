@@ -5,8 +5,8 @@ import { useLanguage } from '../i18n';
 import { useAuth } from '../auth';
 import useSessionState from '../useSessionState';
 import LoadingButton from '../components/LoadingButton';
-import LoadingStatus from '../components/LoadingStatus';
 import Pagination from '../components/Pagination';
+import SkeletonTableRows from '../components/SkeletonTableRows';
 
 const formatLocalDate = date => {
   const year = date.getFullYear();
@@ -128,7 +128,7 @@ export default function Sales() {
       <div className="table-wrap sales-table-wrap"><table className="sales-table" aria-busy={loadingSales}>
         <thead><tr><th>{t('Sale #')}</th><th>{t('Date')}</th><th>{t('Customer')}</th><th>{t('Payment')}</th><th>{t('Total')}</th><th></th></tr></thead>
         <tbody>
-          {loadingSales && <tr><td className="products-empty" colSpan="6"><LoadingStatus className="loading-status-compact">{t('Loading sales...')}</LoadingStatus></td></tr>}
+          {loadingSales && <SkeletonTableRows columns={6} label={t('Loading sales...')} />}
           {!loadingSales && sales.length === 0 && <tr><td className="products-empty" colSpan="6">{t('No sales yet')}</td></tr>}
           {!loadingSales && sales.map(s => (
             <tr key={s.id}>
@@ -144,7 +144,13 @@ export default function Sales() {
       </table></div>
       {!loadingSales && <Pagination page={salesPage} size={10} total={salesTotal} onPageChange={setSalesPage} />}
 
-      {loadingSaleId && !selected && <LoadingStatus>Loading sale details...</LoadingStatus>}
+      {loadingSaleId && !selected && <div className="detail sale-detail sale-detail-skeleton" aria-busy="true">
+        <span className="visually-hidden" role="status">{t('Loading sale details...')}</span>
+        <span className="skeleton-block sale-detail-skeleton-title" aria-hidden="true" />
+        <div className="sale-detail-skeleton-meta" aria-hidden="true">{[0, 1, 2, 3].map(index => <span className="skeleton-block" key={index} />)}</div>
+        <div className="table-wrap sale-items-table-wrap" aria-hidden="true"><table className="sale-items-table"><thead><tr><th>{t('Product')}</th><th>{t('Qty')}</th><th>{t('Unit Price')}</th><th>{t('Subtotal')}</th></tr></thead><tbody>{[0, 1, 2].map(row => <tr key={row}>{[0, 1, 2, 3].map(column => <td key={column}><span className="skeleton-block skeleton-table-cell" /></td>)}</tr>)}</tbody></table></div>
+        <span className="skeleton-block sale-detail-skeleton-total" aria-hidden="true" />
+      </div>}
 
       {selected && (
         <div className="detail sale-detail" ref={detailsRef} tabIndex="-1" aria-labelledby="sale-detail-title">

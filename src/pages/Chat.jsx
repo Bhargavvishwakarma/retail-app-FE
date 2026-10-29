@@ -3,7 +3,6 @@ import api from '../api';
 import { useAuth } from '../auth';
 import useSessionState from '../useSessionState';
 import LoadingButton from '../components/LoadingButton';
-import LoadingStatus from '../components/LoadingStatus';
 
 function renderInline(text, keyPrefix) {
   const parts = text.split(/(\*\*[^*]+\*\*|__[^_]+__|`[^`]+`)/g).filter(Boolean);
@@ -422,8 +421,8 @@ export default function Chat() {
             }}
             onKeyDown={handleModelKeyDown}
           >
-            <span id="chat-model-value">{modelsLoading ? 'Loading models…' : (selectedModel?.displayName || (models.length ? `${selectedModel?.provider} — ${selectedModel?.model}` : 'No models available'))}</span>
-            {modelsLoading && <span className="button-spinner" aria-hidden="true" />}
+            <span id="chat-model-value">{modelsLoading ? <span className="skeleton-block chat-model-trigger-skeleton" aria-hidden="true" /> : (selectedModel?.displayName || (models.length ? `${selectedModel?.provider} — ${selectedModel?.model}` : 'No models available'))}</span>
+            {modelsLoading && <span className="visually-hidden">Loading models…</span>}
             <span className="chat-model-chevron" aria-hidden="true" />
           </button>
           {modelMenuOpen && models.length > 0 && (
@@ -470,7 +469,10 @@ export default function Chat() {
                 <strong>Saved conversations</strong>
                 <span>Choose a chat to continue</span>
               </div>
-              {historyLoading && <LoadingStatus className="chat-history-loading">Loading conversations…</LoadingStatus>}
+              {historyLoading && <div className="chat-history-skeleton" aria-busy="true">
+                <span className="visually-hidden" role="status">Loading conversations…</span>
+                {[0, 1, 2, 3].map(index => <div className="chat-history-skeleton-item" aria-hidden="true" key={index}><span className="skeleton-block chat-history-skeleton-title" /><span className="skeleton-block chat-history-skeleton-date" /></div>)}
+              </div>}
               {!historyLoading && historyError && (
                 <div className="chat-history-state chat-history-state-error" role="alert">
                   <span>{historyError}</span>
@@ -491,9 +493,14 @@ export default function Chat() {
                       disabled={sending || conversationRestoring}
                       onClick={() => openConversation(item.conversationId)}
                     >
-                      {loadingConversationId === item.conversationId && <span className="button-spinner" aria-hidden="true" />}
-                      <span className="chat-history-item-title">{item.title || 'Untitled conversation'}</span>
-                      <span className="chat-history-item-date">{formatConversationDate(item.updatedAt)}</span>
+                      {loadingConversationId === item.conversationId ? <>
+                        <span className="visually-hidden">Opening {item.title || 'conversation'}</span>
+                        <span className="skeleton-block chat-history-item-title-skeleton" aria-hidden="true" />
+                        <span className="skeleton-block chat-history-item-date-skeleton" aria-hidden="true" />
+                      </> : <>
+                        <span className="chat-history-item-title">{item.title || 'Untitled conversation'}</span>
+                        <span className="chat-history-item-date">{formatConversationDate(item.updatedAt)}</span>
+                      </>}
                     </button>
                   ))}
                 </div>
@@ -521,7 +528,14 @@ export default function Chat() {
           <p>Recent messages in this chat are used as context. Chats are saved to your account.</p>
         </div>
 
-        {modelsLoading && <div className="chat-state" role="status">Loading available models…</div>}
+        {modelsLoading && <div className="chat-state chat-models-skeleton" aria-busy="true">
+          <span className="visually-hidden" role="status">Loading available models…</span>
+          <div className="chat-model-skeleton-bubbles" aria-hidden="true">
+            <div className="skeleton-block chat-model-skeleton-bubble chat-model-skeleton-bubble-wide"><span className="skeleton-block" /><span className="skeleton-block" /></div>
+            <div className="skeleton-block chat-model-skeleton-bubble chat-model-skeleton-bubble-short"><span className="skeleton-block" /><span className="skeleton-block" /></div>
+            <div className="skeleton-block chat-model-skeleton-bubble chat-model-skeleton-bubble-medium"><span className="skeleton-block" /><span className="skeleton-block" /></div>
+          </div>
+        </div>}
         {!modelsLoading && modelsError && (
           <div className="chat-state chat-state-error" role="alert">
             <p>{modelsError}</p>
@@ -540,7 +554,12 @@ export default function Chat() {
           <>
             <div className="chat-messages" aria-live="polite" aria-relevant="additions text">
               {conversationRestoring ? (
-                <div className="chat-empty"><LoadingStatus>Restoring your conversation…</LoadingStatus></div>
+                <div className="chat-message-skeletons" aria-busy="true">
+                  <span className="visually-hidden" role="status">Restoring your conversation…</span>
+                  <div className="chat-message-skeleton-row" aria-hidden="true"><div className="chat-message-skeleton-bubble chat-message-skeleton-assistant"><span className="skeleton-block" /><span className="skeleton-block" /><span className="skeleton-block" /></div></div>
+                  <div className="chat-message-skeleton-row chat-message-skeleton-row-user" aria-hidden="true"><div className="chat-message-skeleton-bubble chat-message-skeleton-user"><span className="skeleton-block" /><span className="skeleton-block" /></div></div>
+                  <div className="chat-message-skeleton-row" aria-hidden="true"><div className="chat-message-skeleton-bubble chat-message-skeleton-assistant"><span className="skeleton-block" /><span className="skeleton-block" /></div></div>
+                </div>
               ) : messages.length === 0 ? (
                 <div className="chat-empty">
                   <span className="chat-empty-mark" aria-hidden="true">?</span>

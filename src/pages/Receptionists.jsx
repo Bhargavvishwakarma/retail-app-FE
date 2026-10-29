@@ -4,8 +4,8 @@ import { useLanguage } from '../i18n';
 import { useAuth } from '../auth';
 import useSessionState from '../useSessionState';
 import LoadingButton from '../components/LoadingButton';
-import LoadingStatus from '../components/LoadingStatus';
 import Pagination from '../components/Pagination';
+import SkeletonTableRows from '../components/SkeletonTableRows';
 
 const USER_LIST_PAGE_SIZE = 10;
 
@@ -73,10 +73,10 @@ export default function Receptionists() {
 
     <section className="user-list-section">
       <div className="products-list-heading"><div><h2>{t('Store users')}</h2><p>{userTotal} {t('accounts')}</p></div></div>
-      <div className="table-wrap"><table className="products-table user-table">
+      <div className="table-wrap"><table className="products-table user-table" aria-busy={loadingUsers}>
         <thead><tr><th>{t('Name')}</th><th>{t('Email')}</th><th>{t('Role')}</th><th>{t('Created')}</th></tr></thead>
         <tbody>
-          {loadingUsers && <tr><td className="products-empty" colSpan="4"><LoadingStatus className="loading-status-compact">{t('Loading...')}</LoadingStatus></td></tr>}
+          {loadingUsers && <SkeletonTableRows columns={4} label={t('Loading...')} />}
           {!loadingUsers && users.length === 0 && <tr><td className="products-empty" colSpan="4">{t('No users found')}</td></tr>}
           {!loadingUsers && users.map(account => <tr key={account.id}>
             <td>{account.name}</td>
