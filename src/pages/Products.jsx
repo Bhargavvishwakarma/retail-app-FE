@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../api';
 import { useLanguage } from '../i18n';
 import { useAuth } from '../auth';
@@ -16,10 +17,13 @@ const PRODUCT_LIST_PAGE_SIZE = 10;
 export default function Products() {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const lowStockOnly = searchParams.get('filter') === 'low-stock';
   const isOwner = user.role === 'OWNER';
   const draftKey = user.id || user.email || 'current-user';
   const [search, setSearch] = useSessionState(`retail-draft:${draftKey}:products-search`, '');
   const [products, setProducts] = useState(/** @type {import('../types').Product[]} */ ([]));
+  const [lowStockProducts, setLowStockProducts] = useState(/** @type {import('../types').Product[]} */ ([]));
   const [productTotal, setProductTotal] = useState(0);
   const [productPage, setProductPage] = useState(0);
   const [debouncedSearch, setDebouncedSearch] = useState(search);
@@ -35,6 +39,10 @@ export default function Products() {
   const [deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
   const minimumPrice = Math.ceil((Number(form.cost || 0) * 1.15 - Number.EPSILON) * 100) / 100;
+  const visibleProducts = lowStockOnly
+    ? lowStockProducts.filter(product => !debouncedSearch || `${product.name} ${product.sku || ''}`.toLowerCase().includes(debouncedSearch.toLowerCase()))
+    : products;
+  const visibleProductTotal = lowStockOnly ? visibleProducts.length : productTotal;
 
   const getError = err => err.response?.data?.error || t('Request failed');
 
@@ -47,6 +55,21 @@ export default function Products() {
   }, [search]);
 
   useEffect(() => {
+    if (!lowStockOnly) return undefined;
+    let current = true;
+    setLoadingProducts(true);
+    api.get('/products/low-stock', { params: { threshold: 5 } })
+      .then(response => {
+        if (!current) return;
+        setLowStockProducts(response.data);
+      })
+      .catch(err => { if (current) setError(getError(err)); })
+      .finally(() => { if (current) setLoadingProducts(false); });
+    return () => { current = false; };
+  }, [lowStockOnly, reloadProducts, t]);
+
+  useEffect(() => {
+    if (lowStockOnly) return undefined;
     let current = true;
     setLoadingProducts(true);
     api.get('/products', { params: { search: debouncedSearch, page: productPage, size: PRODUCT_LIST_PAGE_SIZE } })
@@ -58,7 +81,23 @@ export default function Products() {
       .catch(err => { if (current) setError(getError(err)); })
       .finally(() => { if (current) setLoadingProducts(false); });
     return () => { current = false; };
-  }, [debouncedSearch, productPage, reloadProducts, t]);
+  }, [debouncedSearch, lowStockOnly, productPage, reloadProducts, t]);
+
+  useEffect(() => {
+    setProductPage(0);
+    if (lowStockOnly) {
+      setSearch('');
+      setDebouncedSearch('');
+    }
+  }, [lowStockOnly]);
+
+  useEffect(() => {
+    if (!lowStockOnly) return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById('product-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [lowStockOnly]);
 
   const reload = () => setReloadProducts(value => value + 1);
   useEffect(() => {
@@ -76,9 +115,16 @@ export default function Products() {
   const resetPage = () => {
     setSearch('');
     setProductPage(0);
+    if (lowStockOnly) setSearchParams({}, { replace: true });
     setForm(emptyForm);
     setEditingId(null);
     setError('');
+  };
+
+  const changeStockFilter = value => {
+    setSearch('');
+    setProductPage(0);
+    setSearchParams(value === 'low-stock' ? { filter: value } : {}, { replace: true });
   };
 
   const handleSubmit = async (e) => {
@@ -152,8 +198,8 @@ export default function Products() {
   return (
     <div className="products-page">
       <header className="products-heading">
-        <div><span className="eyebrow">{t('INVENTORY')}</span><h1>{t('Products')}</h1><p>{t('Manage your products, stock, and selling prices.')}</p></div>
-        <div className="products-count"><strong>{productTotal}</strong><span>{t('products')}</span></div>
+        <div><span className="eyebrow">{t('INVENTORY')}</span><h1>{t('Products')}</h1><p>{lowStockOnly ? t('Showing products with fewer than 5 in stock.') : t('Manage your products, stock, and selling prices.')}</p></div>
+        <div className="products-count"><strong>{visibleProductTotal}</strong><span>{t('products')}</span></div>
       </header>
       {error && <p className="error">{error}</p>}
 
@@ -192,14 +238,14 @@ export default function Products() {
         </div>
       </form>}
 
-      <div className="products-list-heading"><div><h2>{t('Product list')}</h2><p>{t('Search and update your inventory.')}</p></div><div className="products-list-controls"><input className="search-box" aria-label={t('Search by name or SKU...')} placeholder={t('Search by name or SKU...')} value={search} onChange={e => setSearch(e.target.value)} /><button type="button" className="muted" onClick={resetPage}>{t('Reset')}</button></div></div>
+      <div id="product-list" className="products-list-heading"><div><h2>{t('Product list')}</h2><p>{lowStockOnly ? t('Search within low stock products.') : t('Search and update your inventory.')}</p></div><div className="products-list-controls"><input className="search-box" aria-label={t('Search by name or SKU...')} placeholder={t('Search by name or SKU...')} value={search} onChange={e => setSearch(e.target.value)} /><details className="stock-filter-menu" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false; }}><summary aria-label={t('Filter products by stock')}><span>{t(lowStockOnly ? 'Low stock (<5)' : 'All stock')}</span><span className="stock-filter-chevron" aria-hidden="true" /></summary><div className="stock-filter-options" role="group" aria-label={t('Filter products by stock')}><button type="button" aria-pressed={!lowStockOnly} onClick={event => { changeStockFilter('all'); event.currentTarget.closest('details').open = false; }}>{t('All stock')}{!lowStockOnly && <span aria-hidden="true">✓</span>}</button><button type="button" aria-pressed={lowStockOnly} onClick={event => { changeStockFilter('low-stock'); event.currentTarget.closest('details').open = false; }}>{t('Low stock (<5)')}{lowStockOnly && <span aria-hidden="true">✓</span>}</button></div></details><button type="button" className="muted" onClick={resetPage}>{t('Reset')}</button></div></div>
 
-      <div className="table-wrap"><table className="products-table">
+      <div className="table-wrap products-table-wrap"><table className="products-table">
         <thead><tr><th>{t('Name')}</th><th>{t('SKU')}</th><th>{t('Category')}</th><th>{t('Size (S/M/L/XL)')}</th><th>{t('Color')}</th><th>{t('Price')}</th><th>{t('Stock')}</th><th>{t('Status')}</th>{isOwner && <th>{t('Actions')}</th>}</tr></thead>
         <tbody aria-busy={loadingProducts}>
           {loadingProducts && <tr><td className="products-empty" colSpan={isOwner ? 9 : 8}><LoadingStatus className="loading-status-compact">{t('Loading products...')}</LoadingStatus></td></tr>}
-          {!loadingProducts && products.length === 0 && <tr><td className="products-empty" colSpan={isOwner ? 9 : 8}>{t('No products found')}</td></tr>}
-          {!loadingProducts && products.map(p => (
+          {!loadingProducts && visibleProducts.length === 0 && <tr><td className="products-empty" colSpan={isOwner ? 9 : 8}>{lowStockOnly ? t('No low stock products found') : t('No products found')}</td></tr>}
+          {!loadingProducts && visibleProducts.map(p => (
             <tr key={p.id} className={p.stockQuantity < 5 ? 'low-stock' : ''}>
               <td>{p.name}</td>
               <td>{p.sku}</td>
@@ -217,7 +263,7 @@ export default function Products() {
           ))}
         </tbody>
       </table></div>
-      {!loadingProducts && <Pagination page={productPage} size={PRODUCT_LIST_PAGE_SIZE} total={productTotal} onPageChange={setProductPage} />}
+      {!lowStockOnly && !loadingProducts && <Pagination page={productPage} size={PRODUCT_LIST_PAGE_SIZE} total={productTotal} onPageChange={setProductPage} />}
     </div>
   );
 }

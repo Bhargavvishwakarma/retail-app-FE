@@ -155,7 +155,7 @@ export default function Chat() {
   const [copiedMessageId, setCopiedMessageId] = useState('');
   const [sendError, setSendError] = useState('');
   const [conversationId, setConversationId] = useState(() => getSavedConversationId(conversationStorageKey));
-  const [conversationRestoring, setConversationRestoring] = useState(() => Boolean(getSavedConversationId(conversationStorageKey)));
+  const [conversationRestoring, setConversationRestoring] = useState(false);
   const [loadingConversationId, setLoadingConversationId] = useState('');
   const [conversations, setConversations] = useState([]);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -244,7 +244,10 @@ export default function Chat() {
 
   useEffect(() => {
     const id = savedConversationOnMount.current;
-    if (id) openConversation(id);
+    if (id) {
+      savedConversationOnMount.current = '';
+      openConversation(id);
+    }
   }, []);
 
   useEffect(() => {

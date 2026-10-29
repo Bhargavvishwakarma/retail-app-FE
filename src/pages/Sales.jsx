@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../api';
 import { useLanguage } from '../i18n';
 import { useAuth } from '../auth';
@@ -26,11 +27,15 @@ const getDateRangeParams = range => {
 export default function Sales() {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const draftKey = user.id || user.email || 'current-user';
   const [sales, setSales] = useState(/** @type {import('../types').Sale[]} */ ([]));
   const [salesTotal, setSalesTotal] = useState(0);
   const [salesPage, setSalesPage] = useState(0);
-  const [dateRange, setDateRange] = useState('1');
+  const [dateRange, setDateRange] = useState(() => {
+    const range = searchParams.get('range');
+    return ['1', '7', '30', '90', 'all'].includes(range) ? range : '1';
+  });
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [loadingSales, setLoadingSales] = useState(true);
@@ -115,7 +120,7 @@ export default function Sales() {
             ['30', t('Last 30 days')],
             ['90', t('Last 90 days')],
             ['all', t('All time')]
-          ].map(([value, label]) => <button key={value} type="button" className={dateRange === value ? 'active' : ''} aria-pressed={dateRange === value} onClick={() => { setDateRange(value); setSalesPage(0); }}>{label}</button>)}
+          ].map(([value, label]) => <button key={value} type="button" className={dateRange === value ? 'active' : ''} aria-pressed={dateRange === value} onClick={() => { setDateRange(value); setSearchParams({ range: value }, { replace: true }); setSalesPage(0); }}>{label}</button>)}
         </div>
         <span className="sales-result-count">{salesTotal} {t('sales')}</span>
       </div>

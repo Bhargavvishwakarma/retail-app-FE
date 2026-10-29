@@ -6,9 +6,9 @@ import LoadingStatus from '../components/LoadingStatus';
 
 const metrics = [
   { key: 'revenue', label: "Today's Revenue", value: summary => `Rs. ${Number(summary.todayRevenue).toFixed(2)}`, tone: 'revenue' },
-  { key: 'sales', label: "Today's Sales", value: summary => summary.todaySalesCount },
+  { key: 'sales', label: "Today's Sales", value: summary => summary.todaySalesCount, to: '/sales?range=1' },
   { key: 'products', label: 'Products', value: summary => summary.totalProducts },
-  { key: 'stock', label: 'Low Stock (<5)', value: summary => summary.lowStockCount, tone: 'stock' },
+  { key: 'stock', label: 'Low Stock (<5)', value: summary => summary.lowStockCount, tone: 'stock', to: '/products?filter=low-stock' },
   { key: 'customers', label: 'Customers', value: summary => summary.totalCustomers },
 ];
 
@@ -61,12 +61,14 @@ export default function Dashboard() {
       </header>
 
       <section className="dashboard-metrics" aria-label={t('Store summary')}>
-        {metrics.map(metric => (
-          <article className={`dashboard-metric ${metric.tone ? `dashboard-metric-${metric.tone}` : ''}`} key={metric.key}>
-            <h2>{t(metric.label)}</h2>
-            <p>{metric.value(summary)}</p>
-          </article>
-        ))}
+        {metrics.map(metric => {
+          const className = `dashboard-metric ${metric.tone ? `dashboard-metric-${metric.tone}` : ''}`;
+          const content = <><h2>{t(metric.label)}</h2><p>{metric.value(summary)}</p></>;
+
+          return metric.to
+            ? <Link className={`${className} dashboard-metric-link`} to={metric.to} key={metric.key}>{content}</Link>
+            : <article className={className} key={metric.key}>{content}</article>;
+        })}
       </section>
 
       <section className="dashboard-sales" aria-labelledby="recent-sales-heading">

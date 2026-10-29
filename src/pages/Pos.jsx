@@ -225,13 +225,15 @@ export default function Pos() {
 
       <div className="pos">
         <div className="pos-left">
-          <div className="catalog-heading">
-            <div><h2>{t('Products')}</h2><p>{productTotal} {productTotal === 1 ? 'item' : 'items'} available</p></div>
-          </div>
+          <div className="catalog-tools">
+            <div className="catalog-heading">
+              <div><h2>{t('Products')}</h2><p>{productTotal} {productTotal === 1 ? 'item' : 'items'} available</p></div>
+            </div>
           <div className="pos-search">
             <span aria-hidden="true">⌕</span>
             <input aria-label={t('Search products by name or SKU...')} placeholder={t('Search products by name or SKU...')} value={search} onChange={e => setSearch(e.target.value)} />
             {search && <button type="button" className="clear-search" onClick={() => setSearch('')} aria-label="Clear search">×</button>}
+          </div>
           </div>
           <div className="product-grid" aria-busy={productsLoading}>
             {productsLoading && <LoadingStatus className="catalog-loading">{t('Loading products...')}</LoadingStatus>}
@@ -260,16 +262,18 @@ export default function Pos() {
             <div className="cart-heading-actions"><span className="cart-count">{cart.reduce((count, item) => count + item.quantity, 0)}</span><button type="button" className="muted" onClick={resetSale} disabled={checkingOut}>{t('Reset')}</button></div>
           </div>
           {cart.length === 0 && <div className="cart-empty"><span className="cart-empty-icon" aria-hidden="true">＋</span><strong>{t('No items yet. Click a product to add.')}</strong><p>Select an item to get started.</p></div>}
-          {cart.map(c => (
-            <div key={c.product.id} className="cart-row">
-              <span className="cart-item-info"><strong>{c.product.name}</strong><small>{t('Default')}: Rs. {Number(c.product.price).toFixed(2)}</small></span>
-              <label className="cart-price-field"><span>{t('Sale price')}</span><input aria-label={`${t('Sale price')} for ${c.product.name}`} type="number" min={minimumPriceFor(c.product)} step="0.01" value={c.unitPrice} onChange={e => changePrice(c.product.id, e.target.value)} disabled={checkingOut} /><small>{t('Min')}: Rs. {minimumPriceFor(c.product).toFixed(2)}</small></label>
-              <input aria-label={`Quantity of ${c.product.name}`} type="number" min="1" value={c.quantity}
-                     onChange={e => changeQty(c.product.id, parseInt(e.target.value, 10) || 1)} disabled={checkingOut} />
-              <strong className="cart-item-total">Rs. {(Number(c.unitPrice || 0) * c.quantity).toFixed(2)}</strong>
-              <button type="button" className="remove-item" aria-label={`Remove ${c.product.name}`} onClick={() => removeItem(c.product.id)} disabled={checkingOut}>×</button>
-            </div>
-          ))}
+          <div className="cart-items" role="region" aria-label={t('Cart items')} tabIndex={cart.length > 0 ? 0 : undefined}>
+            {cart.map(c => (
+              <div key={c.product.id} className="cart-row">
+                <span className="cart-item-info"><strong>{c.product.name}</strong><small>{t('Default')}: Rs. {Number(c.product.price).toFixed(2)}</small></span>
+                <label className="cart-price-field"><span>{t('Sale price')}</span><input aria-label={`${t('Sale price')} for ${c.product.name}`} type="number" min={minimumPriceFor(c.product)} step="0.01" value={c.unitPrice} onChange={e => changePrice(c.product.id, e.target.value)} disabled={checkingOut} /><small>{t('Min')}: Rs. {minimumPriceFor(c.product).toFixed(2)}</small></label>
+                <input aria-label={`Quantity of ${c.product.name}`} type="number" min="1" value={c.quantity}
+                       onChange={e => changeQty(c.product.id, parseInt(e.target.value, 10) || 1)} disabled={checkingOut} />
+                <strong className="cart-item-total">Rs. {(Number(c.unitPrice || 0) * c.quantity).toFixed(2)}</strong>
+                <button type="button" className="remove-item" aria-label={`Remove ${c.product.name}`} onClick={() => removeItem(c.product.id)} disabled={checkingOut}>×</button>
+              </div>
+            ))}
+          </div>
           <div className="cart-summary"><div className="subtotal-line"><span>{t('Subtotal')}</span><span>Rs. {total.toFixed(2)}</span></div><div className="total-line"><span>{t('Total')}</span><strong>Rs. {total.toFixed(2)}</strong></div></div>
 
           <label htmlFor="customer-search">{t('Customer')}</label>
