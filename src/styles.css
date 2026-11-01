@@ -721,8 +721,13 @@ th { background: #f7f9f7; }
 .chat-message-skeleton-user { width: min(48%, 520px); min-height: 65px; border-color: color-mix(in srgb, var(--green) 22%, white); background: var(--green-soft); }
 .chat-empty { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; padding: 45px 20px; color: var(--ink); text-align: center; }
 .chat-empty-mark { display: grid; width: 42px; height: 42px; margin-bottom: 13px; place-items: center; border: 1px solid color-mix(in srgb, var(--green) 18%, white); border-radius: 14px; background: var(--green-soft); color: var(--green); font-size: 22px; font-weight: 700; }
-.chat-empty strong { font-size: 15px; }
+.chat-empty h2 { margin: 0; color: var(--ink); font-size: 16px; font-weight: 700; }
 .chat-empty p { margin: 7px 0 0; color: var(--muted); font-size: 12px; }
+.chat-suggestion-list { display: flex; width: min(100%, 900px); flex-wrap: wrap; justify-content: center; gap: 8px; margin: 18px auto 0; }
+.chat-suggestion { min-height: 38px; padding: 8px 12px; border: 1px solid #dfe7e1; border-radius: 999px; background: #fff; color: #43584d; font-size: 12px; font-weight: 600; line-height: 1.35; text-align: center; transition: border-color .16s ease, background .16s ease, color .16s ease; }
+.chat-suggestion:hover:not(:disabled) { border-color: var(--green); background: var(--green-soft); color: var(--green-dark); }
+.chat-suggestion:focus-visible { outline: 3px solid color-mix(in srgb, var(--green) 35%, transparent); outline-offset: 2px; }
+.chat-suggestion:disabled { cursor: not-allowed; opacity: .55; }
 .chat-message-row { display: flex; width: fit-content; max-width: min(94%, 1100px); flex-direction: column; align-self: flex-start; }
 .chat-message-row-user { align-self: flex-end; }
 .chat-message { width: fit-content; max-width: 100%; padding: 13px 15px; border: 1px solid #e4eae5; border-radius: 13px; background: #fff; }

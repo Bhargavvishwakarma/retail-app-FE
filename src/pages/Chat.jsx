@@ -4,6 +4,18 @@ import { useAuth } from '../auth';
 import useSessionState from '../useSessionState';
 import LoadingButton from '../components/LoadingButton';
 
+const SUGGESTED_QUESTIONS = [
+  { text: 'What products are currently in stock?' },
+  { text: 'How many units are in stock in total?' },
+  { text: 'Summarize our inventory by category.' },
+  { text: 'Which products are low in stock?', ownerOnly: true },
+  { text: 'What were today’s sales?', ownerOnly: true },
+  { text: 'Show sales from the last 7 days.', ownerOnly: true },
+  { text: 'Which products sold the most in the last 30 days?', ownerOnly: true },
+  { text: 'Show recent sales from the last 7 days.', ownerOnly: true },
+  { text: 'How many customers are registered?' },
+];
+
 function renderInline(text, keyPrefix) {
   const parts = text.split(/(\*\*[^*]+\*\*|__[^_]+__|`[^`]+`)/g).filter(Boolean);
   return parts.map((part, index) => {
@@ -367,6 +379,7 @@ export default function Chat() {
 
   const canSend = !modelsLoading && !modelsError && models.length > 0 && Boolean(selectedModelId) && !sending;
   const selectedModel = models.find(model => model.id === selectedModelId);
+  const suggestedQuestions = SUGGESTED_QUESTIONS.filter(question => !question.ownerOnly || user.role === 'OWNER');
 
   const handleModelKeyDown = event => {
     if (!models.length || modelsLoading || sending) return;
@@ -563,8 +576,21 @@ export default function Chat() {
               ) : messages.length === 0 ? (
                 <div className="chat-empty">
                   <span className="chat-empty-mark" aria-hidden="true">?</span>
-                  <strong>What would you like to know?</strong>
-                  <p>For example: “Which products are low on stock?”</p>
+                  <h2 id="chat-suggestions-title">Ask about your store</h2>
+                  <p>Choose a question to get started, or type your own below.</p>
+                  <div className="chat-suggestion-list" role="group" aria-labelledby="chat-suggestions-title">
+                    {suggestedQuestions.map(({ text }) => (
+                      <button
+                        type="button"
+                        className="chat-suggestion"
+                        key={text}
+                        disabled={!canSend}
+                        onClick={() => submitQuestion(text, true)}
+                      >
+                        {text}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               ) : messages.map((message, index) => {
                 return <div className={`chat-message-row chat-message-row-${message.role}`} key={message.id} ref={index === messages.length - 1 ? latestMessageRef : null}>
