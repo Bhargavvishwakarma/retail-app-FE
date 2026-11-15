@@ -38,6 +38,7 @@ function getLoginError(error, method) {
   if (status === 401 && method === 'password') return 'Invalid email or password';
   if (status === 401) return 'Google could not verify this sign-in. Please choose your account and try again.';
   if (status === 403) return 'This Google account is not enabled for this store. Ask the Owner to register your verified email.';
+  if (status === 503 && method === 'google') return 'Google sign-in is temporarily unavailable. Please try again in a moment.';
   if (!error.response) return 'Could not connect to the sign-in service. Check your connection and try again.';
   return 'Sign-in could not be completed. Please try again.';
 }

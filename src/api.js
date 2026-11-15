@@ -2,6 +2,14 @@ import axios from 'axios';
 
 let sessionRequests = null;
 
+// The notification stream uses fetch because EventSource cannot attach the
+// application's bearer token. Keeping token access here means it follows the
+// same session-storage contract as the Axios interceptor below.
+export function getSessionToken() {
+  try { return sessionStorage.getItem('retail-token'); }
+  catch { return null; }
+}
+
 export function startSessionRequests() {
   sessionRequests?.abort();
   sessionRequests = new AbortController();
@@ -20,12 +28,12 @@ api.interceptors.request.use(config => {
   const url = String(config.url || '');
   const isPublicAuth = ['/auth/login', '/auth/google'].some(path => url.includes(path));
   if (!isPublicAuth) {
-    let token = null;
-    try { token = sessionStorage.getItem('retail-token'); }
-    catch { /* Restricted browser storage is treated as a signed-out session. */ }
+    const token = getSessionToken();
     if (!token || !sessionRequests) return Promise.reject(new axios.CanceledError('No active session'));
     config.headers.Authorization = `Bearer ${token}`;
-    config.signal = sessionRequests.signal;
+    config.signal = config.signal && typeof AbortSignal.any === 'function'
+      ? AbortSignal.any([config.signal, sessionRequests.signal])
+      : sessionRequests.signal;
   }
   return config;
 });

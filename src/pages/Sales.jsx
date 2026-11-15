@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import api from '../api';
 import { useLanguage } from '../i18n';
-import { useAuth } from '../auth';
-import useSessionState from '../useSessionState';
 import LoadingButton from '../components/LoadingButton';
 import Pagination from '../components/Pagination';
 import SkeletonTableRows from '../components/SkeletonTableRows';
@@ -26,9 +24,9 @@ const getDateRangeParams = range => {
 
 export default function Sales() {
   const { t } = useLanguage();
-  const { user } = useAuth();
+  const { saleId } = useParams();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const draftKey = user.id || user.email || 'current-user';
   const [sales, setSales] = useState(/** @type {import('../types').Sale[]} */ ([]));
   const [salesTotal, setSalesTotal] = useState(0);
   const [salesPage, setSalesPage] = useState(0);
@@ -42,7 +40,6 @@ export default function Sales() {
   const [selected, setSelected] = useState(/** @type {import('../types').Sale | null} */ (null));
   const detailsRef = useRef(null);
   const shouldScrollToDetails = useRef(false);
-  const [selectedSaleId, setSelectedSaleId] = useSessionState(`retail-draft:${draftKey}:selected-sale`, '');
   const [loadingSaleId, setLoadingSaleId] = useState('');
   const [error, setError] = useState('');
 
@@ -69,14 +66,25 @@ export default function Sales() {
   }, [salesPage, dateRange, debouncedSearch, t]);
 
   useEffect(() => {
-    if (selectedSaleId) {
-      setLoadingSaleId(selectedSaleId);
-      api.get('/sales/' + selectedSaleId)
-        .then(response => setSelected(response.data))
-        .catch(() => setSelectedSaleId(''))
-        .finally(() => setLoadingSaleId(''));
+    if (!saleId) {
+      setSelected(null);
+      setLoadingSaleId('');
+      return undefined;
     }
-  }, []);
+
+    let current = true;
+    shouldScrollToDetails.current = true;
+    setError('');
+    setSelected(null);
+    setLoadingSaleId(saleId);
+    api.get('/sales/' + saleId)
+      .then(response => { if (current) setSelected(response.data); })
+      .catch(err => {
+        if (current) setError(err.response?.data?.error || t('Request failed'));
+      })
+      .finally(() => { if (current) setLoadingSaleId(''); });
+    return () => { current = false; };
+  }, [saleId, t]);
 
   useEffect(() => {
     if (!selected || !shouldScrollToDetails.current) return;
@@ -85,22 +93,7 @@ export default function Sales() {
     detailsRef.current?.focus({ preventScroll: true });
   }, [selected]);
 
-  const view = async (id) => {
-    if (loadingSaleId) return;
-    setError('');
-    setLoadingSaleId(id);
-    shouldScrollToDetails.current = true;
-    try {
-      const response = await api.get('/sales/' + id);
-      setSelected(response.data);
-      setSelectedSaleId(id);
-    } catch (err) {
-      shouldScrollToDetails.current = false;
-      setError(err.response?.data?.error || t('Request failed'));
-    } finally {
-      setLoadingSaleId('');
-    }
-  };
+  const view = id => navigate(`/sales/${encodeURIComponent(id)}`);
 
   return (
     <div className="sales-page">
@@ -172,7 +165,7 @@ export default function Sales() {
             </tbody>
           </table></div>
           <h3>{t('Total')}: Rs. {Number(selected.totalAmount).toFixed(2)}</h3>
-          <button onClick={() => { setSelected(null); setSelectedSaleId(''); }}>{t('Close')}</button>
+          <button onClick={() => navigate('/sales')}>{t('Close')}</button>
         </div>
       )}
     </div>

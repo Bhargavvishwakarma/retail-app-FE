@@ -60,6 +60,7 @@ describe('Google and password sign-in', () => {
       requests.push(config);
       expect(config.url).toContain('/auth/google');
       expect(JSON.parse(config.data)).toEqual({ idToken: 'google-id-token' });
+      expect(config.timeout).toBe(12_000);
       return { data: { token: 'application-jwt', tokenType: 'Bearer', expiresIn: 28800, user: profile } };
     });
     renderLogin();
@@ -100,6 +101,15 @@ describe('Google and password sign-in', () => {
     renderLogin();
     fireEvent.click(await screen.findByRole('button', { name: 'Sign in with Google' }));
     expect((await screen.findByRole('alert')).textContent).toContain('could not verify this sign-in');
+  });
+
+  it('recovers the sign-in form when Google verification is temporarily unavailable', async () => {
+    setAdapter(async () => { throw Object.assign(new Error('unavailable'), { response: { status: 503 } }); });
+    renderLogin();
+    fireEvent.click(await screen.findByRole('button', { name: 'Sign in with Google' }));
+
+    expect((await screen.findByRole('alert')).textContent).toContain('temporarily unavailable');
+    expect(screen.queryByText('Signing in...')).toBeNull();
   });
 
   it('keeps the existing password login and prevents duplicate submissions', async () => {

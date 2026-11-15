@@ -1,9 +1,10 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import api from './api';
 import App from './App';
 
 const originalAdapter = api.defaults.adapter;
+const originalFetch = globalThis.fetch;
 const receptionist = { id: 'desk-id', name: 'Front Desk', email: 'desk@example.com', role: 'RECEPTIONIST', workspaceTheme: 'forest', active: true };
 const owner = { id: 'owner-id', name: 'Shop Owner', email: 'owner@example.com', role: 'OWNER', workspaceTheme: 'forest', active: true };
 const operationalSummary = { todaySalesCount: 3, totalProducts: 12, lowStockCount: 2, totalCustomers: 9 };
@@ -32,14 +33,20 @@ function renderApp(profile, route = '/') {
       data = analytics;
     }
     else if (config.url.includes('/dashboard/summary')) data = { todayRevenue: 1250, ...operationalSummary, recentSales: [] };
+    else if (config.url.includes('/notifications/unread-count')) data = { count: 0 };
+    else if (config.url.includes('/notifications')) data = { content: [], number: 0, size: 15, totalElements: 0, totalPages: 0, first: true, last: true, numberOfElements: 0, empty: true };
     else throw new Error(`Unexpected request: ${config.url}`);
     return { status: 200, statusText: 'OK', headers: {}, config, data };
   };
+  globalThis.fetch = vi.fn((_url, options = {}) => new Promise((resolve, reject) => {
+    options.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
+  }));
   return render(<App />);
 }
 
 afterEach(() => {
   api.defaults.adapter = originalAdapter;
+  globalThis.fetch = originalFetch;
   window.history.pushState({}, '', '/');
 });
 

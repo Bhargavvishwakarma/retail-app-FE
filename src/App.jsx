@@ -9,9 +9,13 @@ import Sales from './pages/Sales';
 import Login from './pages/Login';
 import Receptionists from './pages/Receptionists';
 import Chat from './pages/Chat';
+import NotificationCenter from './pages/NotificationCenter';
 import { LanguageProvider, useLanguage } from './i18n';
 import { AuthProvider, RequireAuth, useAuth } from './auth';
 import LoadingButton from './components/LoadingButton';
+import NotificationBell from './components/notifications/NotificationBell';
+import NotificationToast from './components/notifications/NotificationToast';
+import { NotificationProvider } from './context/NotificationContext';
 
 function Workspace() {
   const { language, setLanguage, t } = useLanguage();
@@ -60,7 +64,7 @@ function Workspace() {
     }
   };
 
-  return <div className={`layout${location.pathname === '/chat' ? ' chat-workspace' : ''}`} data-theme={theme}>
+  return <NotificationProvider><div className={`layout${location.pathname === '/chat' ? ' chat-workspace' : ''}`} data-theme={theme}>
     <header className="mobile-header">
       <button className="mobile-menu-toggle" type="button" aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={menuOpen} aria-controls="workspace-navigation" onClick={() => setMenuOpen(open => !open)}>
         {menuOpen
@@ -99,6 +103,7 @@ function Workspace() {
       </button>
       <nav aria-label="Main navigation">
         <NavLink to="/" end onClick={() => setMenuOpen(false)}><span className="nav-icon" aria-hidden="true">&#8962;</span>{t('Dashboard')}</NavLink>
+        <NavLink to="/notifications" onClick={() => setMenuOpen(false)}><span className="nav-icon" aria-hidden="true">&#9679;</span>{t('Notifications')}</NavLink>
         <NavLink to="/pos" onClick={() => setMenuOpen(false)}><span className="nav-icon" aria-hidden="true">&#43;</span>{t('New Sale (POS)')}</NavLink>
         <NavLink to="/products" onClick={() => setMenuOpen(false)}><span className="nav-icon" aria-hidden="true">&#9671;</span>{t('Products')}</NavLink>
         <NavLink to="/customers" onClick={() => setMenuOpen(false)}><span className="nav-icon" aria-hidden="true">&#9823;</span>{t('Customers')}</NavLink>
@@ -117,6 +122,7 @@ function Workspace() {
           <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.25 4.5A2.25 2.25 0 0 1 5.5 2.25h9A2.25 2.25 0 0 1 16.75 4.5v6A2.25 2.25 0 0 1 14.5 12.75H9l-4.75 3v-3.42A2.24 2.24 0 0 1 3.25 10.5v-6Z" /></svg>
           <span>Ask assistant</span>
         </Link>
+        <NotificationBell />
         <NavLink to="/profile" className="workspace-profile-action">Profile</NavLink>
       </div>
       <Routes>
@@ -125,13 +131,16 @@ function Workspace() {
         <Route path="/products" element={<Products />} />
         <Route path="/customers" element={<Customers />} />
         <Route path="/chat" element={<Chat />} />
+        <Route path="/notifications" element={<NotificationCenter />} />
         <Route path="/sales" element={<RequireAuth roles={['OWNER']}><Sales /></RequireAuth>} />
+        <Route path="/sales/:saleId" element={<RequireAuth roles={['OWNER']}><Sales /></RequireAuth>} />
         <Route path="/receptionists" element={<RequireAuth roles={['OWNER']}><Receptionists /></RequireAuth>} />
         <Route path="/profile" element={<Profile user={user} theme={theme} themeSaving={themeSaving} themeError={themeError} onThemeChange={selectTheme} onLogout={logout} />} />
         <Route path="*" element={<Navigate to={user.role === 'OWNER' ? '/' : '/pos'} replace />} />
       </Routes>
     </main>
-  </div>;
+    <NotificationToast />
+  </div></NotificationProvider>;
 }
 
 function LongPressTextSelection({ children }) {

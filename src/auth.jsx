@@ -1,9 +1,13 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import api, { cancelSessionRequests, startSessionRequests } from './api';
 
 const TOKEN_KEY = 'retail-token';
 const EXPIRY_KEY = 'retail-token-expires-at';
+const REFRESH_EARLY_MS = 30_000;
+const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000;
+const AUTH_REQUEST_TIMEOUT_MS = 12_000;
+const ACTIVITY_EVENTS = ['pointerdown', 'pointermove', 'keydown', 'touchstart', 'scroll', 'wheel'];
 const AuthContext = createContext(null);
 
 function readSessionValue(key) {
@@ -41,31 +45,44 @@ function isActiveProfile(profile) {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(/** @type {import('./types').AppUser | null} */ (null));
   const [loading, setLoading] = useState(true);
+  const [sessionRevision, setSessionRevision] = useState(0);
+  const lastActivityAt = useRef(0);
+  const refreshInFlight = useRef(false);
+  const sessionEnding = useRef(false);
+  const isAuthenticated = Boolean(user);
 
   const clearAuthState = useCallback(() => {
+    lastActivityAt.current = 0;
     clearSession();
     setUser(null);
     setLoading(false);
   }, []);
+
+  const endSession = useCallback(() => {
+    if (sessionEnding.current) return;
+    sessionEnding.current = true;
+    clearAuthState();
+    // A full navigation resets the app and clears the browser Network log when Preserve log is off.
+    window.location.replace('/login');
+  }, [clearAuthState]);
 
   const logout = useCallback(async () => {
     const token = readSessionValue(TOKEN_KEY);
     try {
       if (token) await api.post('/auth/logout', null, { timeout: 8000 });
     } catch { /* Local sign-out must complete even if the API is unavailable. */ }
-    clearAuthState();
-    // A full navigation clears the browser's Network log when Preserve log is off.
-    window.location.replace('/login');
-  }, [clearAuthState]);
+    endSession();
+  }, [endSession]);
 
   useEffect(() => {
-    const handleUnauthorized = () => clearAuthState();
+    const handleUnauthorized = () => endSession();
     window.addEventListener('auth:unauthorized', handleUnauthorized);
 
     const token = readSessionValue(TOKEN_KEY);
     const expiresAt = Number(readSessionValue(EXPIRY_KEY));
     if (!token || !expiresAt || expiresAt <= Date.now()) {
-      clearAuthState();
+      if (token) endSession();
+      else clearAuthState();
       return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
     }
 
@@ -75,33 +92,111 @@ export function AuthProvider({ children }) {
       .then(response => {
         if (!active) return;
         if (!isActiveProfile(response.data)) {
-          clearAuthState();
+          endSession();
           return;
         }
+        lastActivityAt.current = Date.now();
         setUser(response.data);
       })
-      .catch(() => { if (active) clearAuthState(); })
+      .catch(() => { if (active) endSession(); })
       .finally(() => { if (active) setLoading(false); });
 
     return () => {
       active = false;
       window.removeEventListener('auth:unauthorized', handleUnauthorized);
     };
-  }, [clearAuthState]);
+  }, [clearAuthState, endSession]);
 
   useEffect(() => {
-    if (!user) return undefined;
-    const expiresAt = Number(readSessionValue(EXPIRY_KEY));
-    if (!expiresAt || expiresAt <= Date.now()) { clearAuthState(); return undefined; }
-    const timeout = window.setTimeout(clearAuthState, expiresAt - Date.now());
-    return () => window.clearTimeout(timeout);
-  }, [user, clearAuthState]);
+    if (!isAuthenticated) return undefined;
+    if (!lastActivityAt.current) lastActivityAt.current = Date.now();
+
+    let active = true;
+    let refreshTimeout;
+    let expiryTimeout;
+    let inactivityTimeout;
+
+    const expireSession = () => endSession();
+    const getExpiry = () => Number(readSessionValue(EXPIRY_KEY));
+    const scheduleInactivityTimeout = () => {
+      window.clearTimeout(inactivityTimeout);
+      const remaining = INACTIVITY_TIMEOUT_MS - (Date.now() - lastActivityAt.current);
+      inactivityTimeout = window.setTimeout(expireSession, Math.max(0, remaining));
+    };
+    const scheduleRefresh = () => {
+      window.clearTimeout(refreshTimeout);
+      const expiresAt = getExpiry();
+      if (!expiresAt || expiresAt <= Date.now()) { expireSession(); return; }
+      refreshTimeout = window.setTimeout(refreshSession, Math.max(0, expiresAt - Date.now() - REFRESH_EARLY_MS));
+    };
+    const refreshSession = async () => {
+      const expiresAt = getExpiry();
+      if (!expiresAt || expiresAt <= Date.now()) { expireSession(); return; }
+      if (Date.now() - lastActivityAt.current >= INACTIVITY_TIMEOUT_MS) { expireSession(); return; }
+      if (document.visibilityState !== 'visible') return;
+
+      const currentToken = readSessionValue(TOKEN_KEY);
+      if (!currentToken) { expireSession(); return; }
+      if (refreshInFlight.current) return;
+
+      refreshInFlight.current = true;
+      try {
+        // The refresh endpoint uses the current bearer and has no request body.
+        const response = await api.post('/auth/refresh');
+        if (!active || readSessionValue(TOKEN_KEY) !== currentToken) return;
+        if (getExpiry() <= Date.now()) { expireSession(); return; }
+
+        const { token, expiresIn, user: refreshedUser } = response.data;
+        if (!isActiveProfile(refreshedUser)) { expireSession(); return; }
+        storeToken(token, expiresIn);
+        setUser(refreshedUser);
+        setSessionRevision(revision => revision + 1);
+      } catch {
+        // A failed refresh leaves the current bearer in place until its expiry timer runs.
+        if (active && (!readSessionValue(TOKEN_KEY) || getExpiry() <= Date.now())) expireSession();
+      } finally {
+        refreshInFlight.current = false;
+      }
+    };
+    const handleActivity = () => {
+      const expiresAt = getExpiry();
+      if (!expiresAt || expiresAt <= Date.now()) { expireSession(); return; }
+      lastActivityAt.current = Date.now();
+      scheduleInactivityTimeout();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      const expiresAt = getExpiry();
+      if (!expiresAt || expiresAt <= Date.now()) { expireSession(); return; }
+      if (Date.now() - lastActivityAt.current >= INACTIVITY_TIMEOUT_MS) { expireSession(); return; }
+      scheduleRefresh();
+    };
+
+    const expiresAt = getExpiry();
+    if (!expiresAt || expiresAt <= Date.now()) { expireSession(); return undefined; }
+    expiryTimeout = window.setTimeout(expireSession, expiresAt - Date.now());
+    scheduleInactivityTimeout();
+    scheduleRefresh();
+    ACTIVITY_EVENTS.forEach(eventName => window.addEventListener(eventName, handleActivity, { passive: true }));
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      active = false;
+      window.clearTimeout(refreshTimeout);
+      window.clearTimeout(expiryTimeout);
+      window.clearTimeout(inactivityTimeout);
+      ACTIVITY_EVENTS.forEach(eventName => window.removeEventListener(eventName, handleActivity));
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isAuthenticated, sessionRevision, endSession]);
 
   const login = useCallback(async (email, password) => {
-    const response = await api.post('/auth/login', { email, password });
+    const response = await api.post('/auth/login', { email, password }, { timeout: AUTH_REQUEST_TIMEOUT_MS });
     const { token, expiresIn, user: loggedInUser } = response.data;
     if (!isActiveProfile(loggedInUser)) throw new Error('The sign-in response was incomplete. Please try again.');
     storeToken(token, expiresIn);
+    sessionEnding.current = false;
+    lastActivityAt.current = Date.now();
     startSessionRequests();
     setUser(loggedInUser);
     setLoading(false);
@@ -109,10 +204,12 @@ export function AuthProvider({ children }) {
   }, []);
 
   const loginWithGoogle = useCallback(async idToken => {
-    const response = await api.post('/auth/google', { idToken });
+    const response = await api.post('/auth/google', { idToken }, { timeout: AUTH_REQUEST_TIMEOUT_MS });
     const { token, expiresIn, user: loggedInUser } = response.data;
     if (!isActiveProfile(loggedInUser)) throw new Error('The sign-in response was incomplete. Please try again.');
     storeToken(token, expiresIn);
+    sessionEnding.current = false;
+    lastActivityAt.current = Date.now();
     startSessionRequests();
     setUser(loggedInUser);
     setLoading(false);
@@ -125,7 +222,7 @@ export function AuthProvider({ children }) {
     return response.data;
   }, []);
 
-  const value = useMemo(() => ({ user, loading, login, loginWithGoogle, logout, updateWorkspaceTheme }), [user, loading, login, loginWithGoogle, logout, updateWorkspaceTheme]);
+  const value = useMemo(() => ({ user, loading, sessionRevision, login, loginWithGoogle, logout, updateWorkspaceTheme }), [user, loading, sessionRevision, login, loginWithGoogle, logout, updateWorkspaceTheme]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
