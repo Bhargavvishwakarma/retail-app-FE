@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import api, { cancelSessionRequests, startSessionRequests } from './api';
+import api, { cancelSessionRequests, refreshSession as requestSessionRefresh, setSessionRefreshHandler, startSessionRequests } from './api';
 
 const TOKEN_KEY = 'retail-token';
 const EXPIRY_KEY = 'retail-token-expires-at';
@@ -47,7 +47,6 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [sessionRevision, setSessionRevision] = useState(0);
   const lastActivityAt = useRef(0);
-  const refreshInFlight = useRef(false);
   const sessionEnding = useRef(false);
   const isAuthenticated = Boolean(user);
 
@@ -127,7 +126,7 @@ export function AuthProvider({ children }) {
       window.clearTimeout(refreshTimeout);
       const expiresAt = getExpiry();
       if (!expiresAt || expiresAt <= Date.now()) { expireSession(); return; }
-      refreshTimeout = window.setTimeout(refreshSession, Math.max(0, expiresAt - Date.now() - REFRESH_EARLY_MS));
+      refreshTimeout = window.setTimeout(() => { requestSessionRefresh().catch(() => {}); }, Math.max(0, expiresAt - Date.now() - REFRESH_EARLY_MS));
     };
     const refreshSession = async () => {
       const expiresAt = getExpiry();
@@ -137,9 +136,6 @@ export function AuthProvider({ children }) {
 
       const currentToken = readSessionValue(TOKEN_KEY);
       if (!currentToken) { expireSession(); return; }
-      if (refreshInFlight.current) return;
-
-      refreshInFlight.current = true;
       try {
         // The refresh endpoint uses the current bearer and has no request body.
         const response = await api.post('/auth/refresh');
@@ -147,17 +143,19 @@ export function AuthProvider({ children }) {
         if (getExpiry() <= Date.now()) { expireSession(); return; }
 
         const { token, expiresIn, user: refreshedUser } = response.data;
-        if (!isActiveProfile(refreshedUser)) { expireSession(); return; }
+        // Refresh responses only need a replacement bearer and its expiry. A
+        // user profile is optional because /auth/me already validated it when
+        // the session was restored or created.
+        if (refreshedUser && !isActiveProfile(refreshedUser)) { expireSession(); return; }
         storeToken(token, expiresIn);
-        setUser(refreshedUser);
+        if (refreshedUser) setUser(refreshedUser);
         setSessionRevision(revision => revision + 1);
       } catch {
         // A failed refresh leaves the current bearer in place until its expiry timer runs.
         if (active && (!readSessionValue(TOKEN_KEY) || getExpiry() <= Date.now())) expireSession();
-      } finally {
-        refreshInFlight.current = false;
       }
     };
+    const clearRefreshHandler = setSessionRefreshHandler(refreshSession);
     const handleActivity = () => {
       const expiresAt = getExpiry();
       if (!expiresAt || expiresAt <= Date.now()) { expireSession(); return; }
@@ -185,6 +183,7 @@ export function AuthProvider({ children }) {
       window.clearTimeout(refreshTimeout);
       window.clearTimeout(expiryTimeout);
       window.clearTimeout(inactivityTimeout);
+      clearRefreshHandler();
       ACTIVITY_EVENTS.forEach(eventName => window.removeEventListener(eventName, handleActivity));
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };

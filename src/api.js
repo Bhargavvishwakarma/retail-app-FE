@@ -1,6 +1,8 @@
 import axios from 'axios';
 
 let sessionRequests = null;
+let sessionRefreshHandler = null;
+let refreshInFlight = null;
 
 // The notification stream uses fetch because EventSource cannot attach the
 // application's bearer token. Keeping token access here means it follows the
@@ -18,6 +20,26 @@ export function startSessionRequests() {
 export function cancelSessionRequests() {
   sessionRequests?.abort();
   sessionRequests = null;
+}
+
+// AuthProvider owns token expiry and profile validation. The shared promise
+// keeps concurrent requests from treating an old bearer as a logout while its
+// replacement token is being saved.
+export function setSessionRefreshHandler(handler) {
+  sessionRefreshHandler = handler;
+  return () => {
+    if (sessionRefreshHandler === handler) sessionRefreshHandler = null;
+  };
+}
+
+export function refreshSession() {
+  if (!sessionRefreshHandler) return Promise.reject(new Error('No active session refresh handler'));
+  if (!refreshInFlight) {
+    refreshInFlight = Promise.resolve()
+      .then(() => sessionRefreshHandler?.())
+      .finally(() => { refreshInFlight = null; });
+  }
+  return refreshInFlight;
 }
 
 const api = axios.create({
@@ -40,9 +62,24 @@ api.interceptors.request.use(config => {
 
 api.interceptors.response.use(
   response => response,
-  error => {
+  async error => {
     const url = String(error.config?.url || '');
     const isPublicAuth = ['/auth/login', '/auth/google'].some(path => url.includes(path));
+    const isRefreshRequest = url.includes('/auth/refresh');
+    const config = error.config;
+    if (error.response?.status === 401 && !isPublicAuth && !isRefreshRequest && config && !config._sessionRetry) {
+      const tokenUsed = config.headers?.get?.('Authorization') || config.headers?.Authorization;
+      try {
+        await refreshSession();
+        const refreshedToken = getSessionToken();
+        if (refreshedToken && tokenUsed !== `Bearer ${refreshedToken}`) {
+          config._sessionRetry = true;
+          return api.request(config);
+        }
+      } catch {
+        // The original 401 below is the authoritative session failure.
+      }
+    }
     if (error.response?.status === 401 && !isPublicAuth) {
       window.dispatchEvent(new Event('auth:unauthorized'));
     }

@@ -87,7 +87,7 @@ export async function streamNotificationEvents({ signal, onEvent }) {
   });
 
   if (!response.ok) {
-    if (response.status === 401 || response.status === 403) dispatchUnauthorized();
+    if (response.status === 401) dispatchUnauthorized();
     throw new NotificationStreamError('Notification stream could not be opened.', response.status);
   }
   if (!response.body) throw new NotificationStreamError('Notification stream is unavailable.');

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import api from './api';
 import { AuthProvider, useAuth } from './auth';
@@ -28,7 +28,10 @@ function mountAuth() {
   return render(<AuthProvider><AuthControls /></AuthProvider>);
 }
 
-afterEach(() => { api.defaults.adapter = originalAdapter; });
+afterEach(() => {
+  api.defaults.adapter = originalAdapter;
+  vi.useRealTimers();
+});
 
 describe('application authentication session', () => {
   it('exchanges a Google ID token and stores only the app token in session storage', async () => {
@@ -83,6 +86,34 @@ describe('application authentication session', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Protected request' }));
     await waitFor(() => expect(screen.getByText('signed out')).toBeTruthy());
     expect(sessionStorage.getItem('retail-token')).toBeNull();
+  });
+
+  it('refreshes before expiry and uses the replacement bearer for later API requests', async () => {
+    vi.useFakeTimers();
+    const requests = [];
+    setAdapter(config => {
+      requests.push(config);
+      if (config.url.includes('/auth/google')) return { data: { token: 'initial-jwt', expiresIn: 31, user: owner } };
+      if (config.url.includes('/auth/refresh')) {
+        expect(config.headers.Authorization).toBe('Bearer initial-jwt');
+        return { data: { token: 'refreshed-jwt', expiresIn: 3600 } };
+      }
+      if (config.url === '/products') {
+        expect(config.headers.Authorization).toBe('Bearer refreshed-jwt');
+        return { data: [] };
+      }
+      throw new Error(`Unexpected request: ${config.url}`);
+    });
+    mountAuth();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Google login' }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(screen.getByText('OWNER:Shop Owner')).toBeTruthy();
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(sessionStorage.getItem('retail-token')).toBe('refreshed-jwt');
+    await api.get('/products');
+    expect(requests.filter(config => config.url === '/auth/refresh')).toHaveLength(1);
   });
 
   it('does not restore an inactive account', async () => {

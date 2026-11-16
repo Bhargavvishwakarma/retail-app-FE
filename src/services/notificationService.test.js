@@ -76,4 +76,15 @@ describe('notification service', () => {
     expect(received.map(event => event.event)).toEqual(['connected', 'notification', 'heartbeat']);
     expect(received[1]).toMatchObject({ id: 'notification-1', payload: { id: 'notification-1', type: 'LOW_STOCK' } });
   });
+
+  it('does not end the application session when the stream is forbidden', async () => {
+    const unauthorizedEvent = vi.fn();
+    window.addEventListener('auth:unauthorized', unauthorizedEvent);
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 403 });
+
+    await expect(streamNotificationEvents({ signal: new AbortController().signal, onEvent: vi.fn() }))
+      .rejects.toMatchObject({ status: 403 });
+    expect(unauthorizedEvent).not.toHaveBeenCalled();
+    window.removeEventListener('auth:unauthorized', unauthorizedEvent);
+  });
 });

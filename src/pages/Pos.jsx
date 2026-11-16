@@ -47,7 +47,12 @@ export default function Pos() {
     let current = true;
     setProductsLoading(true);
     setError('');
-    api.get('/products', { params: { search: debouncedSearch, page: productPage, size: PRODUCT_PAGE_SIZE } })
+    api.get('/products', { params: {
+      search: debouncedSearch,
+      page: productPage,
+      size: PRODUCT_PAGE_SIZE,
+      includeOutOfStock: Boolean(debouncedSearch)
+    } })
       .then(response => {
         if (!current) return;
         const result = response.data;

@@ -55,9 +55,13 @@ export default function useNotificationStream({ enabled, sessionKey, onNotificat
         if (!controller.signal.aborted) throw new NotificationStreamError('Notification stream ended.');
       } catch (error) {
         if (stopped || controller?.signal.aborted) return;
-        if (error instanceof NotificationStreamError && [401, 403].includes(error.status)) {
+        if (error instanceof NotificationStreamError && error.status === 401) {
           callbacks.current.onStatus?.('error');
           callbacks.current.onAuthError?.();
+          return;
+        }
+        if (error instanceof NotificationStreamError && error.status === 403) {
+          callbacks.current.onStatus?.('error');
           return;
         }
         callbacks.current.onStatus?.(navigator.onLine === false ? 'offline' : 'reconnecting');
