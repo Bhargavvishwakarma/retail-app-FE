@@ -48,6 +48,16 @@ describe('NotificationBell', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Notifications' })).toBeNull());
   });
 
+  it('closes the dropdown from its close button', async () => {
+    render(<BrowserRouter><NotificationBell /></BrowserRouter>);
+    fireEvent.click(screen.getByRole('button', { name: '101 unread notifications' }));
+    await screen.findByRole('dialog', { name: 'Notifications' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close notifications' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Notifications' })).toBeNull());
+  });
+
   it('marks an item or all items as read from the dropdown', async () => {
     render(<BrowserRouter><NotificationBell /></BrowserRouter>);
     fireEvent.click(screen.getByRole('button', { name: '101 unread notifications' }));

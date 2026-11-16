@@ -16,7 +16,12 @@ export default function NotificationDropdown({ onClose, onNotificationSelect }) 
   return <section className="notification-dropdown" role="dialog" aria-label="Notifications">
     <header className="notification-dropdown-header">
       <div><h2>Notifications</h2><p>{unreadCount ? `${unreadCount} unread` : 'All caught up'}</p></div>
-      <button type="button" className="notification-text-action" disabled={markAllDisabled} onClick={handleMarkAll}>Mark all read</button>
+      <div className="notification-dropdown-actions">
+        <button type="button" className="notification-text-action" disabled={markAllDisabled} onClick={handleMarkAll}>Mark all read</button>
+        <button type="button" className="notification-close-button" aria-label="Close notifications" title="Close notifications" onClick={onClose}>
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" /></svg>
+        </button>
+      </div>
     </header>
     {error && <p className="notification-inline-error" role="alert">{error}</p>}
     <div className="notification-dropdown-list" aria-busy={loading}>

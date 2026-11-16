@@ -1248,9 +1248,14 @@ th { background: #f7f9f7; }
 .notification-dropdown-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 16px 13px; border-bottom: 1px solid #edf1ed; }
 .notification-dropdown-header h2 { margin: 0 0 3px; color: var(--ink); font-size: 15px; }
 .notification-dropdown-header p { margin: 0; color: var(--muted); font-size: 11px; }
+.notification-dropdown-actions { display: flex; align-items: center; gap: 8px; }
 .notification-text-action { min-height: 30px; padding: 0; border: 0; background: transparent; color: var(--green-dark); font-size: 11px; font-weight: 750; }
 .notification-text-action:hover:not(:disabled) { background: transparent; color: var(--green); text-decoration: underline; }
 .notification-text-action:disabled { color: #a0aaa4; cursor: not-allowed; }
+.notification-close-button { display: grid; width: 30px; height: 30px; padding: 0; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--muted); }
+.notification-close-button:hover { background: var(--green-soft); color: var(--green-dark); }
+.notification-close-button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.notification-close-button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-width: 1.8; }
 .notification-dropdown-list { max-height: min(472px, calc(100vh - 174px)); overflow-y: auto; }
 .notification-dropdown-loading { display: flex; min-height: 160px; align-items: center; justify-content: center; gap: 9px; color: var(--muted); font-size: 12px; }
 .notification-inline-error { margin: 9px 12px 0; padding: 8px 10px; border-radius: 8px; background: #fff4f2; color: #9a4339; font-size: 11px; line-height: 1.4; }
