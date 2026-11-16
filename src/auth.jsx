@@ -5,7 +5,7 @@ import api, { cancelSessionRequests, startSessionRequests } from './api';
 const TOKEN_KEY = 'retail-token';
 const EXPIRY_KEY = 'retail-token-expires-at';
 const REFRESH_EARLY_MS = 30_000;
-const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000;
+const INACTIVITY_TIMEOUT_MS = 60 * 60 * 1000;
 const AUTH_REQUEST_TIMEOUT_MS = 12_000;
 const ACTIVITY_EVENTS = ['pointerdown', 'pointermove', 'keydown', 'touchstart', 'scroll', 'wheel'];
 const AuthContext = createContext(null);
