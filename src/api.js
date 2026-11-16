@@ -46,6 +46,22 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api'
 });
 
+// Render spins down inactive free services. A public request to the API base
+// keeps the deployed service warm without relying on a signed-in user's
+// session or invoking the authentication interceptors below.
+const KEEP_ALIVE_INTERVAL_MS = 5 * 60 * 1000;
+
+function pingApi() {
+  axios.get(api.defaults.baseURL, { timeout: 8_000 }).catch(() => {
+    // A failed ping is non-critical; the next scheduled ping will try again.
+  });
+}
+
+if (import.meta.env.PROD && typeof window !== 'undefined') {
+  pingApi();
+  window.setInterval(pingApi, KEEP_ALIVE_INTERVAL_MS);
+}
+
 api.interceptors.request.use(config => {
   const url = String(config.url || '');
   const isPublicAuth = ['/auth/login', '/auth/google'].some(path => url.includes(path));
